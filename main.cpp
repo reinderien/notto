@@ -66,6 +66,10 @@ namespace {
 
 
     void process_streams(std::istream &in, std::ostream &out) {
+        constexpr std::ios::iostate mask = std::ios::failbit | std::ios::badbit;
+        in.exceptions(mask);
+        out.exceptions(mask);
+
         for (;;) {
             int n;
             in >> n;
@@ -101,16 +105,12 @@ namespace {
         constexpr const char *cases[] = {"small", "medium", "large"};
 
         for (const char *const case_name: cases) {
-            constexpr std::ios::iostate mask = std::ios::failbit | std::ios::badbit;
-
             std::stringstream out_act;
-            out_act.exceptions(mask);
 
             {
                 std::ostringstream fnin;
                 fnin << "sample_input_" << case_name << ".txt";
                 std::ifstream in;
-                in.exceptions(mask);
                 in.open(fnin.str());
                 process_streams(in, out_act);
             }
