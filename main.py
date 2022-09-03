@@ -98,8 +98,7 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
 
     opt_waypoints = [OptimisedWaypoint(waypoint=waypoints[-1])]
 
-    for i_visited in range(len(waypoints)-2, -1, -1):
-        visited: Waypoint = waypoints[i_visited]
+    for visited in waypoints[-2::-1]:
         best_cost = min(possible_costs(opt_waypoints, visited))
         opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost))
         opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
