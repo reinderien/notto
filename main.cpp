@@ -47,6 +47,10 @@ namespace {
                        cost = time + penalties + skipto->best_cost;
                 if (best_cost > cost) best_cost = cost;
                 penalties += skipto->penalty;
+
+                // If the best cost is less than the current penalty sum, we'll never get better
+                if (penalties > best_cost)
+                    break;
             }
 
             this->best_cost = best_cost;
