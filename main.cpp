@@ -11,7 +11,9 @@
 
 
 namespace {
-    constexpr double speed = 2, delay = 10;
+    constexpr int speed = 2, delay = 10;
+
+    constexpr int max_search_nodes = 15;
 
     class Waypoint {
     private:
@@ -42,15 +44,13 @@ namespace {
             double best_cost = std::numeric_limits<double>::max(),
                    penalties = delay;
 
-            for (; skipto != end; skipto++) {
+            int i = 0;
+
+            for (; skipto != end && i < max_search_nodes; skipto++, i++) {
                 double time = time_to(*skipto),
                        cost = time + penalties + skipto->best_cost;
                 if (best_cost > cost) best_cost = cost;
                 penalties += skipto->penalty;
-
-                // If the best cost is less than the current penalty sum, we'll never get better
-                if (penalties > best_cost)
-                    break;
             }
 
             this->best_cost = best_cost;
