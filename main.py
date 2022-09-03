@@ -35,7 +35,7 @@ class Waypoint:
 @dataclass
 class OptimisedWaypoint:
     waypoint: Waypoint
-    accrued_penalty: float = 0
+    accrued_penalty: int = 0
     best_cost: float = 0
 
     def __str__(self) -> str:
@@ -45,7 +45,7 @@ class OptimisedWaypoint:
         travel_time = visited.time_to(self.waypoint)
         return travel_time + self.best_cost + self.accrued_penalty + DELAY
 
-    def sort_key(self) -> float:
+    def sort_key(self) -> int:
         return self.accrued_penalty
 
     @property
