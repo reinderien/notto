@@ -4,10 +4,10 @@ from io import StringIO
 from math import sqrt
 from numbers import Real
 from sys import stdin, stdout
-from typing import TextIO, Iterable, Iterator, Sequence
+from typing import Iterable, Iterator, Sequence, TextIO
 
-SPEED = 2
 DELAY = 10
+SPEED = 2
 MIN_DISTANCE = 1
 MAX_DISTANCE = sqrt(2) * 100
 MIN_TIME = MIN_DISTANCE / SPEED
@@ -43,12 +43,10 @@ class OptimisedWaypoint:
 
     def cost_for(self, visited: Waypoint) -> float:
         travel_time = visited.time_to(self.waypoint)
-        penalty = DELAY + self.accrued_penalty
-        return travel_time + self.best_cost + penalty
+        return travel_time + self.best_cost + self.accrued_penalty + DELAY
 
     def sort_key(self) -> float:
         return self.accrued_penalty
-
 
     @property
     def invariant_cost(self) -> float:
@@ -87,9 +85,9 @@ def possible_costs(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint
 
 def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     """
-    opt_waypoints, after pruning, stays small (< 20). The min() over it and the pruning operation are O(1) amortised in
-    time and space. The outer loop is then O(n) in time. Since we store all waypoint coordinates after parse, that's
-    O(n) in space but could be made O(1) if we were to parse the file in reverse order.
+    opt_waypoints, after pruning, stays small (< 20). The min() and sort() over it and the pruning operation are O(1)
+    amortised in time and space. The outer loop is then O(n) in time. Since we store all waypoint coordinates after
+    parse, that's O(n) in space but could be made O(1) if we were to parse the file in reverse order.
     """
 
     waypoints = (
@@ -98,13 +96,10 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
         Waypoint(x=100, y=100),
     )
 
-    opt_waypoints = [
-        OptimisedWaypoint(waypoint=waypoints[-1]),
-    ]
+    opt_waypoints = [OptimisedWaypoint(waypoint=waypoints[-1])]
 
     for i_visited in range(len(waypoints)-2, -1, -1):
-        visited = waypoints[i_visited]
-
+        visited: Waypoint = waypoints[i_visited]
         best_cost = min(possible_costs(opt_waypoints, visited))
         opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost))
         opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
