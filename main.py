@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-
+from dataclasses import dataclass
 from io import StringIO
 from math import sqrt
 from numbers import Real
+from pprint import pprint
 from sys import stdin, stdout
-from typing import TextIO, NamedTuple, Iterable, Iterator
+from typing import TextIO, Iterable, Iterator, Sequence
 
 SPEED = 2
 DELAY = 10
 
 
-class Waypoint(NamedTuple):
+@dataclass
+class Waypoint:
     x: Real
     y: Real
     penalty: Real
+
+    best_time: float = 0
+    accrued_penalty: float = 0
 
     @classmethod
     def from_line(cls, line: str) -> 'Waypoint':
@@ -23,9 +28,20 @@ class Waypoint(NamedTuple):
         distance = sqrt((other.x-self.x)**2 + (other.y-self.y)**2)
         return distance / SPEED
 
+    def __repr__(self) -> str:
+        return str(self)
 
-FIRST = Waypoint(x=0, y=0, penalty=float('inf'))
-LAST = Waypoint(x=100, y=100, penalty=float('inf'))
+    def __str__(self) -> str:
+        return f'({self.x:3},{self.y:3}) p={self.penalty:3} ap={self.accrued_penalty:3} bt={self.best_time:6.1f}'
+
+
+def possible_times(waypoints: Sequence[Waypoint], i_visited: int, visited: Waypoint) -> Iterator[float]:
+    for skipto in waypoints[i_visited+1:]:
+        travel_time = visited.time_to(skipto)
+        penalty = DELAY + skipto.accrued_penalty
+        cost = travel_time + skipto.best_time + penalty
+        yield cost
+        skipto.accrued_penalty += visited.penalty
 
 
 def solve(interior_waypoints: Iterable[Waypoint]) -> float:
@@ -34,21 +50,18 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     that is O(n) in memory. More optimisation is possible.
     """
 
-    waypoints: tuple[Waypoint, ...] = (FIRST, *interior_waypoints, LAST)
-    best_times = [0.] * len(waypoints)
+    waypoints: tuple[Waypoint, ...] = (
+        Waypoint(x=0, y=0, penalty=0),
+        *interior_waypoints,
+        Waypoint(x=100, y=100, penalty=float('inf')),
+    )
 
     for i_visited in range(len(waypoints)-2, -1, -1):
+        visited: Waypoint = waypoints[i_visited]
+        visited.best_time = min(possible_times(waypoints, i_visited, visited))
+        pprint(waypoints)
 
-        def possible_times() -> Iterator[float]:
-            penalties = DELAY
-            for i_skipto in range(i_visited + 1, len(waypoints)):
-                travel_time = waypoints[i_visited].time_to(waypoints[i_skipto])
-                yield travel_time + best_times[i_skipto] + penalties
-                penalties += waypoints[i_skipto].penalty
-
-        best_times[i_visited] = min(possible_times())
-
-    return best_times[0]
+    return waypoints[0].best_time
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
