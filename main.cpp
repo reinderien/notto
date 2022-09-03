@@ -13,8 +13,6 @@
 namespace {
     constexpr int speed = 2, delay = 10;
 
-    constexpr int max_search_nodes = 15;
-
     class Waypoint {
     private:
         double best_cost;
@@ -44,13 +42,27 @@ namespace {
             double best_cost = std::numeric_limits<double>::max(),
                    penalties = delay;
 
-            int i = 0;
+            /*
+            This innermost loop produces an overall algorithm that is O(n^2). For random data, the necessary search
+            space starting at the current visited node is far shorter than the sequence to the end - only about the
+            first 15 or so best_costs need to be checked, because at scales longer than that the best_costs increase
+            monotonically. If such a guarantee can be made, this algorithm is reduced to an O(n)-amortised complexity in
+            time, and if a bounded queue is used for waypoints, then an O(1)-amortised complexity in space.
 
-            for (; skipto != end && i < max_search_nodes; skipto++, i++) {
+            Whereas a 15-node-abridged search does pass the provided test cases (very quickly), it is possible to
+            construct an input test case with spatially adjacent nodes and maximal skip penalty where the best_costs
+            search space tends to decrease rather than increase, and abridgement is not feasible. To accommodate cases
+            like this, leave the O(n^2) solution in place.
+            */
+            for (; skipto != end; skipto++) {
                 double time = time_to(*skipto),
                        cost = time + penalties + skipto->best_cost;
                 if (best_cost > cost) best_cost = cost;
                 penalties += skipto->penalty;
+
+                // If the best cost is less than the current penalty sum, we'll never get better
+                if (penalties > best_cost)
+                    break;
             }
 
             this->best_cost = best_cost;
