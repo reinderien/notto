@@ -12,6 +12,12 @@
 
 namespace {
     constexpr int speed = 2, delay = 10;
+    constexpr double
+        dist_min = 1,
+        dist_max = 100*M_SQRT2,
+        time_min = dist_min / speed,
+        time_max = dist_max / speed,
+        stored_cost_min = delay + time_min;
 
     class Waypoint {
     private:
@@ -60,8 +66,10 @@ namespace {
                 if (best_cost > cost) best_cost = cost;
                 penalties += skipto->penalty;
 
-                // If the best cost is less than the current penalty sum, we'll never get better
-                if (penalties > best_cost)
+                // We could further constrain this to penalties + time_min + stored_cost_min,
+                // but the calculation costs more than it saves
+                double min_next_cost = penalties;
+                if (best_cost <= min_next_cost)
                     break;
             }
 
