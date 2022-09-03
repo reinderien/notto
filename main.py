@@ -15,10 +15,7 @@ DELAY = 10
 class Waypoint:
     x: Real
     y: Real
-    penalty: Real
-
-    best_time: float = 0
-    accrued_penalty: float = 0
+    penalty: Real = 0
 
     @classmethod
     def from_line(cls, line: str) -> 'Waypoint':
@@ -32,15 +29,31 @@ class Waypoint:
         return str(self)
 
     def __str__(self) -> str:
-        return f'({self.x:3},{self.y:3}) p={self.penalty:3} ap={self.accrued_penalty:3} bt={self.best_time:6.1f}'
+        return f'({self.x:3},{self.y:3}) p={self.penalty:3}'
 
 
-def possible_times(waypoints: Sequence[Waypoint], i_visited: int, visited: Waypoint) -> Iterator[float]:
-    for skipto in waypoints[i_visited+1:]:
-        travel_time = visited.time_to(skipto)
-        penalty = DELAY + skipto.accrued_penalty
-        cost = travel_time + skipto.best_time + penalty
-        yield cost
+@dataclass
+class OptimisedWaypoint:
+    waypoint: Waypoint
+    accrued_penalty: float = 0
+    best_time: float = 0
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def __str__(self) -> str:
+        return f'{self.waypoint} ap={self.accrued_penalty:3} bt={self.best_time:6.1f}'
+
+    def cost_for(self, visited: Waypoint) -> float:
+        travel_time = visited.time_to(self.waypoint)
+        penalty = DELAY + self.accrued_penalty
+        cost = travel_time + self.best_time + penalty
+        return cost
+
+
+def possible_times(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint) -> Iterator[float]:
+    for skipto in opt_waypoints:
+        yield skipto.cost_for(visited)
         skipto.accrued_penalty += visited.penalty
 
 
@@ -51,17 +64,25 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     """
 
     waypoints: tuple[Waypoint, ...] = (
-        Waypoint(x=0, y=0, penalty=0),
+        Waypoint(x=0, y=0),
         *interior_waypoints,
-        Waypoint(x=100, y=100, penalty=float('inf')),
+        Waypoint(x=100, y=100),
     )
+
+    opt_waypoints: list[OptimisedWaypoint] = [
+        OptimisedWaypoint(waypoint=waypoints[-1]),
+    ]
 
     for i_visited in range(len(waypoints)-2, -1, -1):
         visited: Waypoint = waypoints[i_visited]
-        visited.best_time = min(possible_times(waypoints, i_visited, visited))
-        pprint(waypoints)
 
-    return waypoints[0].best_time
+        best_time = min(possible_times(opt_waypoints, visited))
+        opt_waypoints.insert(0, OptimisedWaypoint(
+            waypoint=visited, best_time=best_time,
+        ))
+        pprint(opt_waypoints)
+
+    return opt_waypoints[0].best_time
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
