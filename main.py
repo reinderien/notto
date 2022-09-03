@@ -3,12 +3,15 @@ from dataclasses import dataclass
 from io import StringIO
 from math import sqrt
 from numbers import Real
-from pprint import pprint
 from sys import stdin, stdout
 from typing import TextIO, Iterable, Iterator, Sequence
 
 SPEED = 2
 DELAY = 10
+MIN_DISTANCE = 1
+MAX_DISTANCE = sqrt(2) * 100
+MIN_TIME = MIN_DISTANCE / SPEED
+MAX_TIME = MAX_DISTANCE / SPEED
 
 
 @dataclass
@@ -25,9 +28,6 @@ class Waypoint:
         distance = sqrt((other.x-self.x)**2 + (other.y-self.y)**2)
         return distance / SPEED
 
-    def __repr__(self) -> str:
-        return str(self)
-
     def __str__(self) -> str:
         return f'({self.x:3},{self.y:3}) p={self.penalty:3}'
 
@@ -36,22 +36,50 @@ class Waypoint:
 class OptimisedWaypoint:
     waypoint: Waypoint
     accrued_penalty: float = 0
-    best_time: float = 0
-
-    def __repr__(self) -> str:
-        return str(self)
+    best_cost: float = 0
 
     def __str__(self) -> str:
-        return f'{self.waypoint} ap={self.accrued_penalty:3} bt={self.best_time:6.1f}'
+        return f'{self.waypoint} ap={self.accrued_penalty:3} bt={self.best_cost:6.1f}'
 
     def cost_for(self, visited: Waypoint) -> float:
         travel_time = visited.time_to(self.waypoint)
         penalty = DELAY + self.accrued_penalty
-        cost = travel_time + self.best_time + penalty
-        return cost
+        return travel_time + self.best_cost + penalty
+
+    def sort_key(self) -> float:
+        return self.accrued_penalty
 
 
-def possible_times(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint) -> Iterator[float]:
+    @property
+    def invariant_cost(self) -> float:
+        return self.accrued_penalty + self.best_cost
+
+
+def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
+    """
+    Since these waypoints are sorted in increasing order of accrued penalty, and the cost formula is
+    travel_time + skippedto.best_cost + 10 + accrued_penalty
+                  ^---- invariant from here onward
+    only the travel time can vary the cost over iterations of the outer loop.
+    We need to prune the collection so that if
+    - the distance to the first element is maximal, and
+    - the distance to the last element is minimal,
+    the last element's cost will still not exceed that of the first element.
+
+    index   distance    time   invariant cost
+    first   141.42      70.71  a         70.71+a
+    ...
+    last    1           0.5    b         0.5+b
+
+    70.71 - 0.5 + a < b
+    """
+    to_exceed = opt_waypoints[0].invariant_cost + MAX_TIME - MIN_TIME
+
+    while opt_waypoints[-1].invariant_cost > to_exceed:
+        opt_waypoints.pop()
+
+
+def possible_costs(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint) -> Iterator[float]:
     for skipto in opt_waypoints:
         yield skipto.cost_for(visited)
         skipto.accrued_penalty += visited.penalty
@@ -59,30 +87,30 @@ def possible_times(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint
 
 def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     """
-    The brute-force approach is O(2^n) in time. This does a faster O(n^2)-time search
-    that is O(n) in memory. More optimisation is possible.
+    opt_waypoints, after pruning, stays small (< 20). The min() over it and the pruning operation are O(1) amortised in
+    time and space. The outer loop is then O(n) in time. Since we store all waypoint coordinates after parse, that's
+    O(n) in space but could be made O(1) if we were to parse the file in reverse order.
     """
 
-    waypoints: tuple[Waypoint, ...] = (
+    waypoints = (
         Waypoint(x=0, y=0),
         *interior_waypoints,
         Waypoint(x=100, y=100),
     )
 
-    opt_waypoints: list[OptimisedWaypoint] = [
+    opt_waypoints = [
         OptimisedWaypoint(waypoint=waypoints[-1]),
     ]
 
     for i_visited in range(len(waypoints)-2, -1, -1):
-        visited: Waypoint = waypoints[i_visited]
+        visited = waypoints[i_visited]
 
-        best_time = min(possible_times(opt_waypoints, visited))
-        opt_waypoints.insert(0, OptimisedWaypoint(
-            waypoint=visited, best_time=best_time,
-        ))
-        pprint(opt_waypoints)
+        best_cost = min(possible_costs(opt_waypoints, visited))
+        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost))
+        opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
+        prune(opt_waypoints)
 
-    return opt_waypoints[0].best_time
+    return best_cost
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
@@ -92,14 +120,13 @@ def process_stream(in_: TextIO, out: TextIO) -> None:
             break
 
         waypoints = (Waypoint.from_line(in_.readline()) for _ in range(n))
-        time = solve(waypoints)
-        out.write(f'{time:.3f}\n')
+        cost = solve(waypoints)
+        out.write(f'{cost:.3f}\n')
 
 
 def test() -> None:
     for case in ('small', 'medium', 'large'):
-        with open(f'sample_input_{case}.txt') as in_, \
-             StringIO() as out:
+        with open(f'sample_input_{case}.txt') as in_, StringIO() as out:
             process_stream(in_, out)
             out.seek(0)
             print(out.getvalue())
