@@ -40,20 +40,20 @@ class OptimisedWaypoint(NamedTuple):
 
     def cost_for(self, visited: Waypoint) -> float:
         travel_time = visited.time_to(self.waypoint)
-        return travel_time + self.best_cost + self.accrued_penalty + DELAY
+        return travel_time + self.best_cost - self.accrued_penalty + DELAY
 
     def sort_key(self) -> float:
         return self.invariant_cost
 
     @property
     def invariant_cost(self) -> float:
-        return self.accrued_penalty + self.best_cost
+        return self.best_cost - self.accrued_penalty
 
 
 def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
     """
     Since these waypoints are sorted in increasing order of accrued penalty, and the cost formula is
-    travel_time + skippedto.best_cost + 10 + accrued_penalty
+    travel_time + skippedto.best_cost + 10 - accrued_penalty
                   ^---- invariant from here onward
     only the travel time can vary the cost over iterations of the outer loop.
     We need to prune the collection so that if
@@ -97,7 +97,7 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
 
     for visited in waypoints[-2::-1]:
         best_cost = min(possible_costs(opt_waypoints, visited))
-        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=-visited.penalty))
+        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=visited.penalty))
         opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
         prune(opt_waypoints)
         total_penalty += visited.penalty
