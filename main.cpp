@@ -90,8 +90,8 @@ namespace {
     ) {
         double best_cost = std::numeric_limits<double>::max();
 
-        for (auto skipto = opt_waypoints.cbegin(); skipto != opt_waypoints.cend(); skipto++) {
-            double cost = skipto->cost_for(visited);
+        for (const OptimisedWaypoint &skipto: opt_waypoints) {
+            double cost = skipto.cost_for(visited);
             if (best_cost > cost) best_cost = cost;
         }
 
@@ -106,7 +106,7 @@ namespace {
             *opt_waypoints_off = &opt_waypoints_b;
         opt_waypoints_on->emplace(waypoints.back());
 
-        auto end = std::prev(waypoints.crend());
+        const auto end = std::prev(waypoints.crend());
         for (auto visited = std::next(waypoints.crbegin());; visited++) {
             double best_cost = get_best_cost(*visited, *opt_waypoints_on);
             if (visited == end)
