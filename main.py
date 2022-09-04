@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from io import StringIO
 from math import sqrt
-from numbers import Real
 from sys import stdin, stdout
 from typing import Iterable, Iterator, NamedTuple, Sequence, TextIO
 
@@ -14,9 +13,9 @@ MAX_TIME = MAX_DISTANCE / SPEED
 
 
 class Waypoint(NamedTuple):
-    x: Real
-    y: Real
-    penalty: Real = 0
+    x: int
+    y: int
+    penalty: int = 0
 
     @classmethod
     def from_line(cls, line: str) -> 'Waypoint':
@@ -96,11 +95,11 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     total_penalty = 0
 
     for visited in waypoints[-2::-1]:
+        total_penalty += visited.penalty
         best_cost = min(possible_costs(opt_waypoints, visited))
         opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=visited.penalty))
         opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
         prune(opt_waypoints)
-        total_penalty += visited.penalty
 
     return best_cost + total_penalty
 
