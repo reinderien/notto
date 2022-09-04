@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-from dataclasses import dataclass
 from io import StringIO
 from math import sqrt
 from numbers import Real
 from sys import stdin, stdout
-from typing import Iterable, Iterator, Sequence, TextIO
+from typing import Iterable, Iterator, NamedTuple, Sequence, TextIO
 
 DELAY = 10
 SPEED = 2
@@ -14,8 +13,7 @@ MIN_TIME = MIN_DISTANCE / SPEED
 MAX_TIME = MAX_DISTANCE / SPEED
 
 
-@dataclass
-class Waypoint:
+class Waypoint(NamedTuple):
     x: Real
     y: Real
     penalty: Real = 0
@@ -32,8 +30,7 @@ class Waypoint:
         return f'({self.x:3},{self.y:3}) p={self.penalty:3}'
 
 
-@dataclass
-class OptimisedWaypoint:
+class OptimisedWaypoint(NamedTuple):
     waypoint: Waypoint
     accrued_penalty: int = 0
     best_cost: float = 0
@@ -80,7 +77,6 @@ def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
 def possible_costs(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint) -> Iterator[float]:
     for skipto in opt_waypoints:
         yield skipto.cost_for(visited)
-        skipto.accrued_penalty += visited.penalty
 
 
 def solve(interior_waypoints: Iterable[Waypoint]) -> float:
@@ -97,14 +93,16 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     )
 
     opt_waypoints = [OptimisedWaypoint(waypoint=waypoints[-1])]
+    total_penalty = 0
 
     for visited in waypoints[-2::-1]:
         best_cost = min(possible_costs(opt_waypoints, visited))
-        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost))
+        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=-visited.penalty))
         opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
         prune(opt_waypoints)
+        total_penalty += visited.penalty
 
-    return best_cost
+    return best_cost + total_penalty
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
