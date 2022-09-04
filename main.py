@@ -45,8 +45,8 @@ class OptimisedWaypoint:
         travel_time = visited.time_to(self.waypoint)
         return travel_time + self.best_cost + self.accrued_penalty + DELAY
 
-    def sort_key(self) -> int:
-        return self.accrued_penalty
+    def sort_key(self) -> float:
+        return self.invariant_cost
 
     @property
     def invariant_cost(self) -> float:
