@@ -112,12 +112,11 @@ namespace {
             if (visited == end)
                 return best_cost;
 
-            for (auto w = opt_waypoints_on->cbegin(); w != opt_waypoints_on->cend(); w++) {
-                opt_waypoints_off->emplace(*w, visited->penalty);
-            }
+            for (const OptimisedWaypoint &w: *opt_waypoints_on)
+                opt_waypoints_off->emplace(w, visited->penalty);
+
             std::swap(opt_waypoints_on, opt_waypoints_off);
             opt_waypoints_off->clear();
-
             opt_waypoints_on->emplace(*visited, best_cost);
 
             prune(*opt_waypoints_on);
