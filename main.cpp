@@ -101,7 +101,7 @@ namespace {
         opt_waypoints.emplace(waypoints.back());
         const auto end = std::prev(waypoints.crend());
 
-        double total_penalty = 0;
+        int total_penalty = 0;
 
         for (auto visited = std::next(waypoints.crbegin());; visited++) {
             total_penalty += visited->penalty;
