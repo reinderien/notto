@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <exception>
@@ -5,28 +6,27 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
 
 namespace {
-    constexpr int speed = 2, delay = 10;
+    constexpr int
+        delay = 10,
+        speed = 2;
     constexpr double
         dist_min = 1,
         dist_max = 100*M_SQRT2,
         time_min = dist_min / speed,
-        time_max = dist_max / speed,
-        stored_cost_min = delay + time_min;
+        time_max = dist_max / speed;
 
     class Waypoint {
-    private:
-        double best_cost;
-
     public:
-        const int x, y, penalty;
+        const int x, y, penalty = 0;
 
-        Waypoint(int x, int y) : x(x), y(y), penalty(0) { }
+        Waypoint(int x, int y) : x(x), y(y) { }
         Waypoint(int x, int y, int penalty) : x(x), y(y), penalty(penalty) { }
 
         static Waypoint read(std::istream &in) {
@@ -40,52 +40,88 @@ namespace {
             double distance = sqrt(dx*dx + dy*dy);
             return distance / speed;
         }
-
-        void set_best_cost(
-            std::vector<Waypoint>::const_iterator skipto,
-            const std::vector<Waypoint>::const_iterator &end
-        ) {
-            double best_cost = std::numeric_limits<double>::max(),
-                   penalties = delay;
-
-            /*
-            This innermost loop produces an overall algorithm that is O(n^2). For random data, the necessary search
-            space starting at the current visited node is far shorter than the sequence to the end - only about the
-            first 15 or so best_costs need to be checked, because at scales longer than that the best_costs increase
-            monotonically. If such a guarantee can be made, this algorithm is reduced to an O(n)-amortised complexity in
-            time, and if a bounded queue is used for waypoints, then an O(1)-amortised complexity in space.
-
-            Whereas a 15-node-abridged search does pass the provided test cases (very quickly), it is possible to
-            construct an input test case with spatially adjacent nodes and maximal skip penalty where the best_costs
-            search space tends to decrease rather than increase, and abridgement is not feasible. To accommodate cases
-            like this, leave the O(n^2) solution in place.
-            */
-            for (; skipto != end; skipto++) {
-                double time = time_to(*skipto),
-                       cost = time + penalties + skipto->best_cost;
-                if (best_cost > cost) best_cost = cost;
-                penalties += skipto->penalty;
-
-                // We could further constrain this to penalties + time_min + stored_cost_min,
-                // but the calculation costs more than it saves
-                double min_next_cost = penalties;
-                if (best_cost <= min_next_cost)
-                    break;
-            }
-
-            this->best_cost = best_cost;
-        }
-
-        double get_best_cost() const { return best_cost; }
     };
 
 
-    double solve(std::vector<Waypoint> &waypoints) {
-        auto visited = waypoints.rbegin();
-        for (visited++; visited != waypoints.rend(); visited++) {
-            visited->set_best_cost(visited.base(), waypoints.end());
+    class OptimisedWaypoint {
+    public:
+        const Waypoint &waypoint;
+        const double best_cost = 0, accrued_penalty = 0;
+
+        OptimisedWaypoint(const Waypoint &visited): waypoint(visited) { }
+
+        OptimisedWaypoint(const Waypoint &visited, double best_cost):
+            waypoint(visited), best_cost(best_cost) { }
+
+        OptimisedWaypoint(const OptimisedWaypoint &copy, double penalty_delta):
+            waypoint(copy.waypoint), best_cost(copy.best_cost),
+            accrued_penalty(copy.accrued_penalty + penalty_delta) { }
+
+        double cost_for(const Waypoint &visited) const {
+            double time = visited.time_to(waypoint);
+            return time + best_cost + accrued_penalty + delay;
         }
-        return waypoints.begin()->get_best_cost();
+
+        double invariant_cost() const {
+            return accrued_penalty + best_cost;
+        }
+
+        bool operator<(const OptimisedWaypoint &other) const {
+            return invariant_cost() < other.invariant_cost();
+        }
+    };
+
+
+    void prune(std::multiset<OptimisedWaypoint> &opt_waypoints) {
+        double to_exceed = opt_waypoints.cbegin()->invariant_cost() + time_max - time_min;
+
+        for (;;) {
+            auto last = std::prev(opt_waypoints.cend());
+            if (last->invariant_cost() > to_exceed)
+                opt_waypoints.erase(last);
+            else break;
+        }
+    }
+
+
+    double get_best_cost(
+        const Waypoint &visited,
+        std::multiset<OptimisedWaypoint> &opt_waypoints
+    ) {
+        double best_cost = std::numeric_limits<double>::max();
+
+        for (auto skipto = opt_waypoints.cbegin(); skipto != opt_waypoints.cend(); skipto++) {
+            double cost = skipto->cost_for(visited);
+            if (best_cost > cost) best_cost = cost;
+        }
+
+        return best_cost;
+    }
+
+
+    double solve(const std::vector<Waypoint> &waypoints) {
+        std::multiset<OptimisedWaypoint> opt_waypoints_a, opt_waypoints_b;
+        std::multiset<OptimisedWaypoint>
+            *opt_waypoints_on = &opt_waypoints_a,
+            *opt_waypoints_off = &opt_waypoints_b;
+        opt_waypoints_on->emplace(waypoints.back());
+
+        auto end = std::prev(waypoints.crend());
+        for (auto visited = std::next(waypoints.crbegin());; visited++) {
+            double best_cost = get_best_cost(*visited, *opt_waypoints_on);
+            if (visited == end)
+                return best_cost;
+
+            for (auto w = opt_waypoints_on->cbegin(); w != opt_waypoints_on->cend(); w++) {
+                opt_waypoints_off->emplace(*w, visited->penalty);
+            }
+            std::swap(opt_waypoints_on, opt_waypoints_off);
+            opt_waypoints_off->clear();
+
+            opt_waypoints_on->emplace(*visited, best_cost);
+
+            prune(*opt_waypoints_on);
+        }
     }
 
 
