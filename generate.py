@@ -53,4 +53,4 @@ if __name__ == '__main__':
     generate_lowdist(Path('lowdist_lowpen.txt'), penalty=1)
     generate_lowdist(Path('lowdist_hipen.txt'), penalty=100)
     generate_max_random(Path('max.txt'))
-    generate_malformed_huge_random(Path('big.txt'), n=25_000)
+    generate_malformed_huge_random(Path('big.txt'), n=250_000)
