@@ -72,13 +72,11 @@ namespace {
     void prune(std::multiset<OptimisedWaypoint> &opt_waypoints) {
         double to_exceed = opt_waypoints.cbegin()->invariant_cost() + time_max - time_min;
 
-        for (;;) {
-            // Cannot use crbegin(): it's logically equivalent but erase() does not accept that type
-            auto last = std::prev(opt_waypoints.cend());
-
-            if (last->invariant_cost() > to_exceed)
-                opt_waypoints.erase(last);
-            else break;
+        for (auto w = opt_waypoints.crbegin(); w != opt_waypoints.crend(); w++) {
+            if (w->invariant_cost() < to_exceed) {
+                opt_waypoints.erase(w.base(), opt_waypoints.end());
+                break;
+            }
         }
     }
 
