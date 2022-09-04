@@ -47,20 +47,20 @@ namespace {
     public:
         const Waypoint &waypoint;
         const double best_cost = 0;
-        const int accrued_penalty = 0;
+        const int penalty = 0;
 
         OptimisedWaypoint(const Waypoint &visited): waypoint(visited) { }
 
-        OptimisedWaypoint(const Waypoint &visited, double best_cost, int accrued_penalty):
-            waypoint(visited), best_cost(best_cost), accrued_penalty(accrued_penalty) { }
+        OptimisedWaypoint(const Waypoint &visited, double best_cost, int penalty):
+            waypoint(visited), best_cost(best_cost), penalty(penalty) { }
 
         double cost_for(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            return time + best_cost - accrued_penalty + delay;
+            return time + best_cost - penalty + delay;
         }
 
         double invariant_cost() const {
-            return best_cost - accrued_penalty;
+            return best_cost - penalty;
         }
 
         bool operator<(const OptimisedWaypoint &other) const {
@@ -101,9 +101,9 @@ namespace {
     double solve(const std::vector<Waypoint> &waypoints) {
         std::multiset<OptimisedWaypoint> opt_waypoints;
         opt_waypoints.emplace(waypoints.back());
+        const auto end = std::prev(waypoints.crend());
 
         double total_penalty = 0;
-        const auto end = std::prev(waypoints.crend());
 
         for (auto visited = std::next(waypoints.crbegin());; visited++) {
             total_penalty += visited->penalty;
