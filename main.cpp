@@ -46,24 +46,21 @@ namespace {
     class OptimisedWaypoint {
     public:
         const Waypoint &waypoint;
-        const double best_cost = 0, accrued_penalty = 0;
+        const double best_cost = 0;
+        const int accrued_penalty = 0;
 
         OptimisedWaypoint(const Waypoint &visited): waypoint(visited) { }
 
-        OptimisedWaypoint(const Waypoint &visited, double best_cost):
-            waypoint(visited), best_cost(best_cost) { }
-
-        OptimisedWaypoint(const OptimisedWaypoint &copy, double penalty_delta):
-            waypoint(copy.waypoint), best_cost(copy.best_cost),
-            accrued_penalty(copy.accrued_penalty + penalty_delta) { }
+        OptimisedWaypoint(const Waypoint &visited, double best_cost, int accrued_penalty):
+            waypoint(visited), best_cost(best_cost), accrued_penalty(accrued_penalty) { }
 
         double cost_for(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            return time + best_cost + accrued_penalty + delay;
+            return time + best_cost - accrued_penalty + delay;
         }
 
         double invariant_cost() const {
-            return accrued_penalty + best_cost;
+            return best_cost - accrued_penalty;
         }
 
         bool operator<(const OptimisedWaypoint &other) const {
@@ -76,7 +73,9 @@ namespace {
         double to_exceed = opt_waypoints.cbegin()->invariant_cost() + time_max - time_min;
 
         for (;;) {
+            // Cannot use crbegin(): it's logically equivalent but erase() does not accept that type
             auto last = std::prev(opt_waypoints.cend());
+
             if (last->invariant_cost() > to_exceed)
                 opt_waypoints.erase(last);
             else break;
@@ -86,7 +85,7 @@ namespace {
 
     double get_best_cost(
         const Waypoint &visited,
-        std::multiset<OptimisedWaypoint> &opt_waypoints
+        const std::multiset<OptimisedWaypoint> &opt_waypoints
     ) {
         double best_cost = std::numeric_limits<double>::max();
 
@@ -100,26 +99,21 @@ namespace {
 
 
     double solve(const std::vector<Waypoint> &waypoints) {
-        std::multiset<OptimisedWaypoint> opt_waypoints_a, opt_waypoints_b;
-        std::multiset<OptimisedWaypoint>
-            *opt_waypoints_on = &opt_waypoints_a,
-            *opt_waypoints_off = &opt_waypoints_b;
-        opt_waypoints_on->emplace(waypoints.back());
+        std::multiset<OptimisedWaypoint> opt_waypoints;
+        opt_waypoints.emplace(waypoints.back());
 
+        double total_penalty = 0;
         const auto end = std::prev(waypoints.crend());
+
         for (auto visited = std::next(waypoints.crbegin());; visited++) {
-            double best_cost = get_best_cost(*visited, *opt_waypoints_on);
+            total_penalty += visited->penalty;
+            double best_cost = get_best_cost(*visited, opt_waypoints);
             if (visited == end)
-                return best_cost;
+                return best_cost + total_penalty;
 
-            for (const OptimisedWaypoint &w: *opt_waypoints_on)
-                opt_waypoints_off->emplace(w, visited->penalty);
+            opt_waypoints.emplace(*visited, best_cost, visited->penalty);
 
-            std::swap(opt_waypoints_on, opt_waypoints_off);
-            opt_waypoints_off->clear();
-            opt_waypoints_on->emplace(*visited, best_cost);
-
-            prune(*opt_waypoints_on);
+            prune(opt_waypoints);
         }
     }
 
@@ -153,8 +147,8 @@ namespace {
                 if (out_exp.eof()) break;
                 throw std::ios::failure("getline");
             }
-            std::cout << time_exp << std::endl;
             out_act >> time_act;
+            std::cout << time_exp << " == " << time_act << std::endl;
             assert(time_exp == time_act);
         }
     }
