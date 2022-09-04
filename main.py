@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 from io import StringIO
 from math import sqrt
 from sys import stdin, stdout
@@ -50,23 +51,7 @@ class OptimisedWaypoint(NamedTuple):
 
 
 def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
-    """
-    Since these waypoints are sorted in increasing order of accrued penalty, and the cost formula is
-    travel_time + skippedto.best_cost + 10 - accrued_penalty
-                  ^---- invariant from here onward
-    only the travel time can vary the cost over iterations of the outer loop.
-    We need to prune the collection so that if
-    - the distance to the first element is maximal, and
-    - the distance to the last element is minimal,
-    the last element's cost will still not exceed that of the first element.
-
-    index   distance    time   invariant cost
-    first   141.42      70.71  a         70.71+a
-    ...
-    last    1           0.5    b         0.5+b
-
-    70.71 - 0.5 + a < b
-    """
+    # opt_waypoints must be in increasing order of invariant cost
     to_exceed = opt_waypoints[0].invariant_cost + MAX_TIME - MIN_TIME
 
     while opt_waypoints[-1].invariant_cost > to_exceed:
@@ -79,12 +64,6 @@ def possible_costs(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint
 
 
 def solve(interior_waypoints: Iterable[Waypoint]) -> float:
-    """
-    opt_waypoints, after pruning, stays small (< 20). The min() and sort() over it and the pruning operation are O(1)
-    amortised in time and space. The outer loop is then O(n) in time. Since we store all waypoint coordinates after
-    parse, that's O(n) in space but could be made O(1) if we were to parse the file in reverse order.
-    """
-
     waypoints = (
         Waypoint(x=0, y=0),
         *interior_waypoints,
@@ -129,7 +108,10 @@ def test() -> None:
 
 
 def main() -> None:
-    process_stream(stdin, stdout)
+    if '-t' in sys.argv:
+        test()
+    else:
+        process_stream(stdin, stdout)
 
 
 if __name__ == '__main__':
