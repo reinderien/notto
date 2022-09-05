@@ -173,6 +173,7 @@ namespace {
 
 
     void process_std() {
+        std::ios::sync_with_stdio(false);
         process_streams(std::cin, std::cout);
     }
 }
