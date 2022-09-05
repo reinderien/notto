@@ -45,7 +45,8 @@ The only term that varies is the distance, and this distance has bounds:
 Due to those bounds, and due to the invariant costs being overwhelmingly greater for non-trivial input, the inner-loop
 sequence of optimised waypoints can be sorted by invariant cost and pruned. In the outer loop, sort the sequence of
 optimised waypoints in increasing order by the sum of invariant costs of each waypoint; the fixed delay can be omitted.
-In C++, rather than sorting, use a self-sorted container, `multimap` with the key being the invariant cost.
+In C++, rather than sorting, use a self-sorted container, `multimap` with the key being the invariant cost. In Python
+the best we can do is logarithmic `bisect.insort()` into a list.
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
 impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
@@ -94,11 +95,13 @@ On an 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, compiling the C++ implemen
 
     g++ -O3 -s -march=native --std=c++20 -Wall -Wextra -pedantic
 
-processing the maximum well-formed input size (9801 waypoints) takes ~7ms. Processing a large, 1,000,000-waypoint file
-mal-formed due to ignoring the waypoint uniqueness constraint takes ~140 ms.
+and benchmarking three cases, all times in approximate milliseconds:
 
-Running through the entire provided test suite takes ~30 ms with the Python implementation and ~4 ms with the C++
-implementation.
+    Dataset             C++20      CPython 3.10.5
+    -------             -----      --------------
+    all testcases           4                  30
+    9801 waypoints          7                  75
+    1,000,000 waypoints   140                5330
 
 `callgrind` profiling reveals a surprising bottleneck, the `istream`-based parse of the input file. The naïve approach
 of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts for some 70% of program execution
