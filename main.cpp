@@ -33,13 +33,8 @@ namespace {
         const int x, y, penalty = 0;
 
         static Waypoint read(std::istream &in) {
-            /*
-            The typical strategy of
-
-                in >> x >> y >> penalty;
-
-            is so slow that, remarkably, it accounts for some 70% of program execution time.
-            */
+            // This is a bottleneck. The following code is a replacement for the typical strategy of
+            //    in >> x >> y >> penalty;
             std::string line;
             std::getline(in, line);
 

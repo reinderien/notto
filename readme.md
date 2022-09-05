@@ -45,12 +45,12 @@ The only term that varies is the distance, and this distance has bounds:
 Due to those bounds, and due to the invariant costs being overwhelmingly greater for non-trivial input, the inner-loop
 sequence of optimised waypoints can be sorted by invariant cost and pruned. In the outer loop, sort the sequence of
 optimised waypoints in increasing order by the sum of invariant costs of each waypoint; the fixed delay can be omitted.
-In C++, rather than sorting, use a self-sorted container, `multiset`.
+In C++, rather than sorting, use a self-sorted container, `multimap` with the key being the invariant cost.
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
-impossible to see a cost smaller than before it. This worst-case calculation is done by assuming that the distance from 
-"visited" to the first "skip-to" is maximal, and the distance from "visited" to the last "skip-to" before pruning is 
-minimal; effectively:
+impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
+from "visited" to the first "skip-to" is maximal, and the distance from "visited" to the last "skip-to" before pruning
+is minimal; effectively:
 
     index        time    invariant   cost
     -----        ----    ---------   ----
@@ -61,15 +61,15 @@ minimal; effectively:
     70.7 - 0.5 + a < b
 
 This pruning step is highly effective, and even for large input produces an optimised waypoint sequence that never
-exceeds 20 elements. Since `multiset` is typically implemented as a balanced binary tree and has O(log(m)) insertion,
-`m` as the length of the optimised waypoint sequence, and since the set size remains small, the inner loop becomes O(1)
-amortised over `n`.
+exceeds 20 elements. `multimap` is typically implemented as a balanced binary tree and has O(log(m)) insertion and
+lookup, `m` as the length of the optimised waypoint sequence. Since the map size remains small, the inner loop becomes
+O(1) amortised over `n`.
 
 Negative penalty accrual
 ------------------------
 
 Up to now, the inner loop that is aggregated by a `min()` required adding a penalty to every skip-to waypoint in the
-optimised waypoint sequence. This expense can be reduced from O(m) to O(1) and avoiding `m` mutations (indeed, avoiding
+optimised waypoint sequence. This expense can be reduced from O(m) to O(1), avoiding `m` mutations (indeed, avoiding
 mutation of any kind on the optimised waypoint structures): do not accrue positive penalties in the inner loop. Instead,
 assign the current visited waypoint's penalty as a negative cost component rather than a positive cost component. All
 cost ordering - variant and invariant - remains in increasing order; all relative cost distances remain the same as they
@@ -81,21 +81,27 @@ Space
 
 Loading all waypoints is O(n) in space. Whereas this could be reduced to O(1) by parsing the file in reverse, this
 complexity is not needed due to the upper bound of the problem. Since all waypoints must be spatially unique and since
-coordinates can only exist in the closed interval [1, 99],
+coordinates can only exist in the closed interval [1, 99], the maximum number of waypoints is
 
-    max waypoints = (99 - 1 + 1)² = 9801
+    (99 - 1 + 1)² = 9801
 
-All waypoints can be trivially held in memory even on embedded systems.
+or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems.
 
 Performance
 ===========
 
 On an 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, compiling the C++ implementation with
 
-    g++ -O3 -s -march=native -fomit-frame-pointer --std=c++20 -Wall -Wextra -pedantic
+    g++ -O3 -s -march=native --std=c++20 -Wall -Wextra -pedantic
 
 processing the maximum well-formed input size (9801 waypoints) takes ~7ms. Processing a large, 1,000,000-waypoint file
 mal-formed due to ignoring the waypoint uniqueness constraint takes ~140 ms.
 
 Running through the entire provided test suite takes ~30 ms with the Python implementation and ~4 ms with the C++
 implementation.
+
+`callgrind` profiling reveals a surprising bottleneck, the `istream`-based parse of the input file. The naïve approach
+of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts for some 70% of program execution
+time. The alternative approach written in `Waypoint::read` gets a line and manually applies `stoi()` to the triple,
+bringing the parse step down to about 45% of execution time. Though the actual problem scale does not call for this,
+further improvements could use manually manipulated buffers and/or producer/consumer parallelism.
