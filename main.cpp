@@ -6,10 +6,14 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <numbers>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
+
+
+using namespace std::string_view_literals;
 
 
 namespace {
@@ -18,7 +22,7 @@ namespace {
         speed = 2;
     constexpr double
         dist_min = 1,
-        dist_max = 100*M_SQRT2,
+        dist_max = 100*std::numbers::sqrt2,
         time_min = dist_min / speed,
         time_max = dist_max / speed;
 
@@ -37,6 +41,7 @@ namespace {
 
         double time_to(const Waypoint &other) const {
             int dx = x - other.x, dy = y - other.y;
+            // std::hypot(dx, dy) makes better use of the library but is much slower
             double distance = sqrt(dx*dx + dy*dy);
             return distance / speed;
         }
@@ -120,6 +125,7 @@ namespace {
         constexpr std::ios::iostate mask = std::ios::failbit | std::ios::badbit;
         in.exceptions(mask);
         out.exceptions(mask);
+        out << std::fixed << std::setprecision(3);
 
         for (;;) {
             int n;
@@ -133,7 +139,7 @@ namespace {
                 waypoints.push_back(Waypoint::read(in));
             waypoints.emplace_back(100, 100);
 
-            out << std::fixed << std::setprecision(3) << solve(waypoints) << std::endl;
+            out << solve(waypoints) << std::endl;
         }
     }
 
@@ -186,7 +192,7 @@ namespace {
 
 int main(int argc, const char **argv) {
     try {
-        if (argc > 1 && std::string(argv[1]) == "-t")
+        if (argc > 1 && argv[1] == "-t"sv)
             test();
         else main();
     } catch (const std::exception &ex) {
