@@ -60,23 +60,23 @@ namespace {
         OptimisedWaypoint(const Waypoint &visited, double best_cost, int penalty):
             waypoint(visited), best_cost(best_cost), penalty(penalty) { }
 
-        double cost_for(const Waypoint &visited) const {
+        double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            return time + best_cost - penalty + delay;
+            return time + invariant_cost() + delay;
         }
 
         double invariant_cost() const {
             return best_cost - penalty;
         }
 
-        std::pair<double, OptimisedWaypoint> map_pair() {
-            return {invariant_cost(), *this};
+        void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
+            into.emplace(invariant_cost(), *this);
         }
     };
 
 
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
-        double to_exceed = opt_waypoints.cbegin()->second.invariant_cost() + time_max - time_min;
+        double to_exceed = opt_waypoints.cbegin()->first + time_max - time_min;
         auto prune_from = opt_waypoints.lower_bound(to_exceed);
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
     }
@@ -89,7 +89,7 @@ namespace {
         double best_cost = std::numeric_limits<double>::max();
 
         for (const OptimisedWaypoint &skipto: opt_waypoints | std::views::values) {
-            double cost = skipto.cost_for(visited);
+            double cost = skipto.cost_from(visited);
             if (best_cost > cost) best_cost = cost;
         }
 
@@ -99,7 +99,7 @@ namespace {
 
     double solve(const std::vector<Waypoint> &waypoints) {
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
-        opt_waypoints.insert(OptimisedWaypoint(waypoints.back()).map_pair());
+        OptimisedWaypoint(waypoints.back()).emplace(opt_waypoints);
         const auto end = std::prev(waypoints.crend());
 
         int total_penalty = 0;
@@ -110,7 +110,7 @@ namespace {
             if (visited == end)
                 return best_cost + total_penalty;
 
-            opt_waypoints.insert(OptimisedWaypoint(*visited, best_cost, visited->penalty).map_pair());
+            OptimisedWaypoint(*visited, best_cost, visited->penalty).emplace(opt_waypoints);
 
             prune(opt_waypoints);
         }
