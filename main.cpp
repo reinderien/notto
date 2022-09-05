@@ -6,8 +6,9 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <numbers>
-#include <set>
+#include <ranges>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -68,31 +69,26 @@ namespace {
             return best_cost - penalty;
         }
 
-        bool operator<(const OptimisedWaypoint &other) const {
-            return invariant_cost() < other.invariant_cost();
+        std::pair<double, OptimisedWaypoint> map_pair() {
+            return {invariant_cost(), *this};
         }
     };
 
 
-    void prune(std::multiset<OptimisedWaypoint> &opt_waypoints) {
-        double to_exceed = opt_waypoints.cbegin()->invariant_cost() + time_max - time_min;
-
-        for (auto w = opt_waypoints.crbegin(); w != opt_waypoints.crend(); w++) {
-            if (w->invariant_cost() < to_exceed) {
-                opt_waypoints.erase(w.base(), opt_waypoints.end());
-                break;
-            }
-        }
+    void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
+        double to_exceed = opt_waypoints.cbegin()->second.invariant_cost() + time_max - time_min;
+        auto prune_from = opt_waypoints.lower_bound(to_exceed);
+        opt_waypoints.erase(prune_from, opt_waypoints.cend());
     }
 
 
     double get_best_cost(
         const Waypoint &visited,
-        const std::multiset<OptimisedWaypoint> &opt_waypoints
+        const std::multimap<double, OptimisedWaypoint> &opt_waypoints
     ) {
         double best_cost = std::numeric_limits<double>::max();
 
-        for (const OptimisedWaypoint &skipto: opt_waypoints) {
+        for (const OptimisedWaypoint &skipto: opt_waypoints | std::views::values) {
             double cost = skipto.cost_for(visited);
             if (best_cost > cost) best_cost = cost;
         }
@@ -102,19 +98,19 @@ namespace {
 
 
     double solve(const std::vector<Waypoint> &waypoints) {
-        std::multiset<OptimisedWaypoint> opt_waypoints;
-        opt_waypoints.emplace(waypoints.back());
+        std::multimap<double, OptimisedWaypoint> opt_waypoints;
+        opt_waypoints.insert(OptimisedWaypoint(waypoints.back()).map_pair());
         const auto end = std::prev(waypoints.crend());
 
         int total_penalty = 0;
 
-        for (auto visited = std::next(waypoints.crbegin());; visited++) {
+        for (auto visited = std::next(waypoints.crbegin());; ++visited) {
             total_penalty += visited->penalty;
             double best_cost = get_best_cost(*visited, opt_waypoints);
             if (visited == end)
                 return best_cost + total_penalty;
 
-            opt_waypoints.emplace(*visited, best_cost, visited->penalty);
+            opt_waypoints.insert(OptimisedWaypoint(*visited, best_cost, visited->penalty).map_pair());
 
             prune(opt_waypoints);
         }
@@ -135,7 +131,7 @@ namespace {
             std::vector<Waypoint> waypoints;
             waypoints.reserve(n+2);
             waypoints.emplace_back(0, 0);
-            for (int i = 0; i < n; i++)
+            for (int i = 0; i < n; ++i)
                 waypoints.push_back(Waypoint::read(in));
             waypoints.emplace_back(100, 100);
 
