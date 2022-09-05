@@ -1,4 +1,7 @@
 .idea/
 __pycache__/
+generated/
 *.o
+*.out
+*.svg
 otto

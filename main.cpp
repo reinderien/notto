@@ -154,14 +154,14 @@ namespace {
 
             {
                 std::ostringstream fnin;
-                fnin << "sample_input_" << case_name << ".txt";
+                fnin << "samples/sample_input_" << case_name << ".txt";
                 std::ifstream in;
                 in.open(fnin.str());
                 process_streams(in, out_act);
             }
 
             std::ostringstream fnout;
-            fnout << "sample_output_" << case_name << ".txt";
+            fnout << "samples/sample_output_" << case_name << ".txt";
             std::ifstream out_exp;
             out_exp.exceptions(std::ios::badbit);
             out_exp.open(fnout.str());

@@ -2,6 +2,7 @@
 import sys
 from io import StringIO
 from math import sqrt
+from pathlib import Path
 from sys import stdin, stdout
 from typing import Iterable, Iterator, NamedTuple, Sequence, TextIO
 
@@ -95,13 +96,14 @@ def process_stream(in_: TextIO, out: TextIO) -> None:
 
 
 def test() -> None:
+    parent = Path('samples')
     for case in ('small', 'medium', 'large'):
-        with open(f'sample_input_{case}.txt') as in_, StringIO() as out:
+        with (parent / f'sample_input_{case}.txt').open() as in_, StringIO() as out:
             process_stream(in_, out)
             out.seek(0)
             print(out.getvalue())
 
-            with open(f'sample_output_{case}.txt') as out_exp:
+            with (parent / f'sample_output_{case}.txt').open() as out_exp:
                 for line in out_exp:
                     actual = next(out)
                     assert line == actual
