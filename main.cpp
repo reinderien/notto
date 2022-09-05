@@ -11,6 +11,7 @@
 #include <ranges>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 
@@ -32,8 +33,22 @@ namespace {
         const int x, y, penalty = 0;
 
         static Waypoint read(std::istream &in) {
-            int x, y, penalty;
-            in >> x >> y >> penalty;
+            /*
+            The typical strategy of
+
+                in >> x >> y >> penalty;
+
+            is so slow that, remarkably, it accounts for some 70% of program execution time.
+            */
+            std::string line;
+            std::getline(in, line);
+
+            const std::string::size_type
+                iy = 1+line.find(' '),
+                ip = 1+line.find(' ', iy);
+            const int x = std::stoi(line),
+                      y = std::stoi(line.substr(iy)),
+                penalty = std::stoi(line.substr(ip));
             return Waypoint(x, y, penalty);
         }
 
@@ -119,6 +134,8 @@ namespace {
             int n;
             in >> n;
             if (n == 0) break;
+            std::string empty;
+            std::getline(in, empty);
 
             std::vector<Waypoint> waypoints;
             waypoints.reserve(n+2);
