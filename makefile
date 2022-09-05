@@ -11,7 +11,7 @@ otto: main.o
 	g++ $$cppflags -o $@ $< -c
 
 callgrind.svg: callgrind.out
-	python -m gprof2dot -f callgrind $< | dot -Tsvg -o $@
+	python -m gprof2dot -wf callgrind $< | dot -Tsvg -o $@
 
 callgrind.out: generated/big.txt otto
 	valgrind --tool=callgrind --callgrind-out-file=$@ ./otto < $<
