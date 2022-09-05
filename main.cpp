@@ -172,7 +172,7 @@ namespace {
     }
 
 
-    void main() {
+    void process_std() {
         process_streams(std::cin, std::cout);
     }
 }
@@ -182,7 +182,7 @@ int main(int argc, const char **argv) {
     try {
         if (argc > 1 && argv[1] == "-t"sv)
             test();
-        else main();
+        else process_std();
     } catch (const std::exception &ex) {
         std::cerr << ex.what() << std::endl;
         return 1;
