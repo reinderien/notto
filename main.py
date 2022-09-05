@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+from bisect import insort
 from io import StringIO
 from math import sqrt
 from pathlib import Path
@@ -77,8 +78,8 @@ def solve(interior_waypoints: Iterable[Waypoint]) -> float:
     for visited in waypoints[-2::-1]:
         total_penalty += visited.penalty
         best_cost = min(possible_costs(opt_waypoints, visited))
-        opt_waypoints.append(OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=visited.penalty))
-        opt_waypoints.sort(key=OptimisedWaypoint.sort_key)
+        new_opt = OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=visited.penalty)
+        insort(opt_waypoints, new_opt, key=OptimisedWaypoint.sort_key)
         prune(opt_waypoints)
 
     return best_cost + total_penalty
