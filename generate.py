@@ -55,4 +55,4 @@ if __name__ == '__main__':
     generate_lowdist(parent / 'lowdist_lowpen.txt', penalty=1)
     generate_lowdist(parent / 'lowdist_hipen.txt', penalty=100)
     generate_max_random(parent / 'max.txt')
-    generate_malformed_huge_random(parent / 'big.txt', n=250_000)
+    generate_malformed_huge_random(parent / 'big.txt', n=1_000_000)
