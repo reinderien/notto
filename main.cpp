@@ -31,9 +31,6 @@ namespace {
     public:
         const int x, y, penalty = 0;
 
-        Waypoint(int x, int y) : x(x), y(y) { }
-        Waypoint(int x, int y, int penalty) : x(x), y(y), penalty(penalty) { }
-
         static Waypoint read(std::istream &in) {
             int x, y, penalty;
             in >> x >> y >> penalty;
@@ -54,11 +51,6 @@ namespace {
         const Waypoint &waypoint;
         const double best_cost = 0;
         const int penalty = 0;
-
-        OptimisedWaypoint(const Waypoint &visited): waypoint(visited) { }
-
-        OptimisedWaypoint(const Waypoint &visited, double best_cost, int penalty):
-            waypoint(visited), best_cost(best_cost), penalty(penalty) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
