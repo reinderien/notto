@@ -92,7 +92,7 @@ Performance
 
 On an 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, compiling the C++ implementation with
 
-    g++ -O3 -s -march=native -fomit-frame-pointer --std=c++20 -Wall -pedantic
+    g++ -O3 -s -march=native -fomit-frame-pointer --std=c++20 -Wall -Wextra -pedantic
 
 processing the maximum well-formed input size (9801 waypoints) takes under 10ms. Processing a large, 250,000-waypoint
 file mal-formed due to ignoring the waypoint uniqueness constraint takes ~80 ms.
