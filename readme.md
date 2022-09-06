@@ -77,6 +77,18 @@ cost ordering - variant and invariant - remains in increasing order; all relativ
 were; but costs tend to become negative. At the end of the outer loop, compensate by adding the total penalty of all
 waypoints to the cost of the first waypoint.
 
+Norm simplification
+-------------------
+
+There are two potential simplifications to the Frobenius norm calculation, neither actually helping performance.
+
+The first is to use the built-in `std::hypot`. This ends up being far slower because of the care it takes in mitigating
+edge conditions that are irrelevant for this application.
+
+The second is, during the inner min() aggregation loop, solve the inequality comparing the two costs for the norm's
+radicand. This allows sqrt() to only be needed once on every in-loop decrease in the score rather than every single
+iteration. Unfortunately, any time saved in avoiding root calls is negated by the cost of the surrounding machinery.
+
 Space
 -----
 
@@ -87,6 +99,15 @@ coordinates can only exist in the closed interval [1, 99], the maximum number of
     (99 - 1 + 1)² = 9801
 
 or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems.
+
+Parsing
+-------
+
+`callgrind` profiling reveals a surprising bottleneck, the `istream`-based parse of the input file. The naïve approach
+of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts for some 70% of program execution
+time. The alternative approach written in `Waypoint::read` gets a line and manually applies `stoi()` to the triple,
+bringing the parse step down to about 45% of execution time. Though the actual problem scale does not call for this,
+further improvements could use manually manipulated buffers and/or producer/consumer parallelism.
 
 Performance
 ===========
@@ -102,9 +123,3 @@ and benchmarking three cases, all times in approximate milliseconds:
     all testcases           4                  30
     9801 waypoints          7                  75
     1,000,000 waypoints   140                5330
-
-`callgrind` profiling reveals a surprising bottleneck, the `istream`-based parse of the input file. The naïve approach
-of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts for some 70% of program execution
-time. The alternative approach written in `Waypoint::read` gets a line and manually applies `stoi()` to the triple,
-bringing the parse step down to about 45% of execution time. Though the actual problem scale does not call for this,
-further improvements could use manually manipulated buffers and/or producer/consumer parallelism.
