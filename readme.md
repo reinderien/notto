@@ -93,7 +93,7 @@ Performance
 
 On an 11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz, compiling the C++ implementation with
 
-    g++ -O3 -s -march=native --std=c++20 -Wall -Wextra -pedantic
+    g++ -Ofast -s -march=native --std=c++20 -Wall -Wextra -pedantic
 
 and benchmarking three cases, all times in approximate milliseconds:
 
