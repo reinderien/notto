@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import sys
-from bisect import insort
+from bisect import insort, bisect
 from io import StringIO
 from math import sqrt
 from pathlib import Path
 from sys import stdin, stdout
-from typing import Iterable, Iterator, NamedTuple, Sequence, TextIO
+from typing import Iterator, NamedTuple, Sequence, TextIO
 
 DELAY = 10
 SPEED = 2
@@ -34,51 +34,44 @@ class Waypoint(NamedTuple):
 
 class OptimisedWaypoint(NamedTuple):
     waypoint: Waypoint
-    accrued_penalty: int = 0
+    penalty: int = 0
     best_cost: float = 0
 
     def __str__(self) -> str:
-        return f'{self.waypoint} ap={self.accrued_penalty:3} bt={self.best_cost:6.1f}'
+        return f'{self.waypoint} ap={self.penalty:3} bt={self.best_cost:6.1f}'
 
-    def cost_for(self, visited: Waypoint) -> float:
+    def cost_from(self, visited: Waypoint) -> float:
         travel_time = visited.time_to(self.waypoint)
-        return travel_time + self.best_cost - self.accrued_penalty + DELAY
+        return travel_time + self.invariant_cost + DELAY
 
     def sort_key(self) -> float:
         return self.invariant_cost
 
     @property
     def invariant_cost(self) -> float:
-        return self.best_cost - self.accrued_penalty
+        return self.best_cost - self.penalty
 
 
 def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
     # opt_waypoints must be in increasing order of invariant cost
     to_exceed = opt_waypoints[0].invariant_cost + MAX_TIME - MIN_TIME
-
-    while opt_waypoints[-1].invariant_cost > to_exceed:
-        opt_waypoints.pop()
+    prune_from = bisect(opt_waypoints, to_exceed, key=OptimisedWaypoint.sort_key)
+    del opt_waypoints[prune_from:]
 
 
 def possible_costs(opt_waypoints: Sequence[OptimisedWaypoint], visited: Waypoint) -> Iterator[float]:
     for skipto in opt_waypoints:
-        yield skipto.cost_for(visited)
+        yield skipto.cost_from(visited)
 
 
-def solve(interior_waypoints: Iterable[Waypoint]) -> float:
-    waypoints = (
-        Waypoint(x=0, y=0),
-        *interior_waypoints,
-        Waypoint(x=100, y=100),
-    )
-
+def solve(waypoints: Sequence[Waypoint]) -> float:
     opt_waypoints = [OptimisedWaypoint(waypoint=waypoints[-1])]
     total_penalty = 0
 
     for visited in waypoints[-2::-1]:
         total_penalty += visited.penalty
         best_cost = min(possible_costs(opt_waypoints, visited))
-        new_opt = OptimisedWaypoint(waypoint=visited, best_cost=best_cost, accrued_penalty=visited.penalty)
+        new_opt = OptimisedWaypoint(waypoint=visited, best_cost=best_cost, penalty=visited.penalty)
         insort(opt_waypoints, new_opt, key=OptimisedWaypoint.sort_key)
         prune(opt_waypoints)
 
@@ -90,8 +83,11 @@ def process_stream(in_: TextIO, out: TextIO) -> None:
         n = int(in_.readline())
         if n < 1:
             break
-
-        waypoints = (Waypoint.from_line(in_.readline()) for _ in range(n))
+        waypoints = (
+            Waypoint(x=0, y=0),
+            *(Waypoint.from_line(in_.readline()) for _ in range(n)),
+            Waypoint(x=100, y=100),
+        )
         cost = solve(waypoints)
         out.write(f'{cost:.3f}\n')
 
