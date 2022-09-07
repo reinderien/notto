@@ -9,10 +9,10 @@ from typing import Iterator, NamedTuple, Sequence, TextIO
 
 DELAY = 10
 SPEED = 2
-MIN_DISTANCE = 1
-MAX_DISTANCE = sqrt(2) * 100
-MIN_TIME = MIN_DISTANCE / SPEED
-MAX_TIME = MAX_DISTANCE / SPEED
+DISTANCE_MIN = 1
+TIME_MIN = DISTANCE_MIN / SPEED
+# DISTANCE_MAX = sqrt(2) * 100     # we can get narrower than this
+# TIME_MAX = DISTANCE_MAX / SPEED
 
 
 class Waypoint(NamedTuple):
@@ -27,6 +27,14 @@ class Waypoint(NamedTuple):
     def time_to(self, other: 'Waypoint') -> float:
         distance = sqrt((other.x-self.x)**2 + (other.y-self.y)**2)
         return distance / SPEED
+
+    @property
+    def time_max(self) -> float:
+        distance_max = sqrt(
+            max(self.x, 100 - self.x) ** 2 +
+            max(self.y, 100 - self.y) ** 2
+        )
+        return distance_max / SPEED
 
     def __str__(self) -> str:
         return f'({self.x:3},{self.y:3}) p={self.penalty:3}'
@@ -54,7 +62,7 @@ class OptimisedWaypoint(NamedTuple):
 
 def prune(opt_waypoints: list[OptimisedWaypoint]) -> None:
     # opt_waypoints must be in increasing order of invariant cost
-    to_exceed = opt_waypoints[0].invariant_cost + MAX_TIME - MIN_TIME
+    to_exceed = opt_waypoints[0].invariant_cost + opt_waypoints[0].waypoint.time_max - TIME_MIN
     prune_from = bisect(opt_waypoints, to_exceed, key=OptimisedWaypoint.sort_key)
     del opt_waypoints[prune_from:]
 

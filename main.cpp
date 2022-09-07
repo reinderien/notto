@@ -7,7 +7,6 @@
 #include <iostream>
 #include <limits>
 #include <map>
-#include <numbers>
 #include <ranges>
 #include <sstream>
 #include <string>
@@ -24,9 +23,10 @@ namespace {
         speed = 2;
     constexpr double
         dist_min = 1,
-        dist_max = 100*std::numbers::sqrt2,
-        time_min = dist_min / speed,
-        time_max = dist_max / speed;
+        time_min = dist_min / speed;
+        // we can get narrower than this
+        // dist_max = 100*std::numbers::sqrt2,
+        // time_max = dist_max / speed;
 
     class Waypoint {
     public:
@@ -53,6 +53,13 @@ namespace {
             double distance = sqrt(dx*dx + dy*dy);
             return distance / speed;
         }
+
+        double time_max() const {
+            int dx = std::max(x, 100 - x),
+                dy = std::max(y, 100 - y);
+            double dist = sqrt(dx*dx + dy*dy);
+            return dist/speed;
+        }
     };
 
 
@@ -78,7 +85,8 @@ namespace {
 
 
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
-        double to_exceed = opt_waypoints.cbegin()->first + time_max - time_min;
+        const auto &front = *opt_waypoints.cbegin();
+        double to_exceed = front.first + front.second.waypoint.time_max() - time_min;
         auto prune_from = opt_waypoints.lower_bound(to_exceed);
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
     }

@@ -66,6 +66,9 @@ exceeds 20 elements. `multimap` is typically implemented as a balanced binary tr
 lookup, `m` as the length of the optimised waypoint sequence. Since the map size remains small, the inner loop becomes
 O(1) amortised over `n`.
 
+Make the pruning even more aggressive: rather than a fixed maximum distance, use the maximum distance from the first 
+waypoint based on the distance to the farthest spatial bound (0 or 100) over both dimensions.
+
 Negative penalty accrual
 ------------------------
 
