@@ -41,7 +41,6 @@ namespace {
         const int x, y, penalty;
         const double time_min;
 
-    public:
         Waypoint(int x, int y, int penalty = 0):
             x(x), y(y), penalty(penalty),
             time_min(::time_to(std::min(x, 100-x), std::min(y, 100-y))) { }
@@ -68,13 +67,17 @@ namespace {
         double time_max() const {
             return ::time_to(std::max(x, 100 - x), std::max(y, 100 - y));
         }
+
+        void output(std::ostream &out) const {
+            out << "x=" << x
+                << " y=" << y
+                << " penalty=" << penalty
+                << " time_min=" << time_min;
+        }
     };
 
     std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
-        out << "x=" << w.x
-            << " y=" << w.y
-            << " penalty=" << w.penalty
-            << " time_min=" << w.time_min;
+        w.output(out);
         return out;
     }
 
@@ -101,14 +104,18 @@ namespace {
         void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
             into.emplace(cost_min, *this);
         }
+
+        void output(std::ostream &out) const {
+            out << waypoint
+                << " best_cost=" << best_cost
+                << " inv_cost=" << invariant_cost
+                << " cost_min=" << cost_min
+                << " penalty=" << penalty;
+        }
     };
 
     std::ostream &operator<<(std::ostream &out, const OptimisedWaypoint &ow) {
-        out << ow.waypoint
-            << " best_cost=" << ow.best_cost
-            << " inv_cost=" << ow.invariant_cost
-            << " cost_min=" << ow.cost_min
-            << " penalty=" << ow.penalty;
+        ow.output(out);
         return out;
     }
 
