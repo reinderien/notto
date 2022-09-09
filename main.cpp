@@ -38,12 +38,7 @@ namespace {
 
     class Waypoint {
     public:
-        const int x, y, penalty;
-        const double time_min;
-
-        Waypoint(int x, int y, int penalty = 0):
-            x(x), y(y), penalty(penalty),
-            time_min(::time_to(std::min(x, 100-x), std::min(y, 100-y))) { }
+        const int x, y, penalty = 0;
 
         static Waypoint read(std::istream &in) {
             // This is a bottleneck. The following code is a replacement for the typical strategy of
@@ -64,15 +59,18 @@ namespace {
             return ::time_to(x - other.x, y - other.y);
         }
 
+        double time_min() const {
+            return ::time_to(std::min(x, 100-x), std::min(y, 100-y));
+        }
+        
         double time_max() const {
-            return ::time_to(std::max(x, 100 - x), std::max(y, 100 - y));
+            return ::time_to(std::max(x, 100-x), std::max(y, 100-y));
         }
 
         void output(std::ostream &out) const {
             out << "x=" << x
                 << " y=" << y
-                << " penalty=" << penalty
-                << " time_min=" << time_min;
+                << " penalty=" << penalty;
         }
     };
 
@@ -90,7 +88,7 @@ namespace {
 
         OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0, int penalty = 0):
             waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - penalty + delay),
-            cost_min(waypoint.time_min + invariant_cost), penalty(penalty) { }
+            cost_min(waypoint.time_min() + invariant_cost), penalty(penalty) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
