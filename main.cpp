@@ -29,20 +29,22 @@ namespace {
         dist_max = 100*std::numbers::sqrt2,
         time_max = dist_max / speed;
 
+
+    double time_to(int dx, int dy) {
+        // std::hypot(dx, dy) makes better use of the library but is much slower
+        return sqrt(dx*dx + dy*dy) / speed;
+    }
+
+
     class Waypoint {
     public:
         const int x, y, penalty;
         const double time_min;
 
-    private:
-        Waypoint(int x, int y, int xmin, int ymin, int penalty = 0):
-            x(x), y(y), penalty(penalty),
-            time_min(sqrt(xmin*xmin + ymin*ymin) / speed) { }
-
     public:
-        Waypoint(int x, int y, int penalty = 0): Waypoint(
-            x, y, std::min(x, 100-x), std::min(y, 100-y), penalty
-        ) { }
+        Waypoint(int x, int y, int penalty = 0):
+            x(x), y(y), penalty(penalty),
+            time_min(::time_to(std::min(x, 100-x), std::min(y, 100-y))) { }
 
         static Waypoint read(std::istream &in) {
             // This is a bottleneck. The following code is a replacement for the typical strategy of
@@ -60,17 +62,11 @@ namespace {
         }
 
         double time_to(const Waypoint &other) const {
-            int dx = x - other.x, dy = y - other.y;
-            // std::hypot(dx, dy) makes better use of the library but is much slower
-            double distance = sqrt(dx*dx + dy*dy);
-            return distance / speed;
+            return ::time_to(x - other.x, y - other.y);
         }
 
         double time_max() const {
-            int dx = std::max(x, 100 - x),
-                dy = std::max(y, 100 - y);
-            double dist = sqrt(dx*dx + dy*dy);
-            return dist/speed;
+            return ::time_to(std::max(x, 100 - x), std::max(y, 100 - y));
         }
     };
 
@@ -90,12 +86,12 @@ namespace {
         const int penalty;
 
         OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0, int penalty = 0):
-            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - penalty),
+            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - penalty + delay),
             cost_min(waypoint.time_min + invariant_cost), penalty(penalty) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            return time + invariant_cost + delay;
+            return time + invariant_cost;
         }
 
         double cost_max() const {
