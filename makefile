@@ -1,7 +1,7 @@
 export
 
 debugflags = -Og -ggdb
-releaseflags = -Ofast -s -march=native
+releaseflags = -Ofast -s -march=native -DNDEBUG
 cppflags = --std=c++20 -Wall -Wextra -pedantic ${releaseflags}
 
 otto: main.o

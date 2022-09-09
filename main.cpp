@@ -21,16 +21,28 @@ namespace {
     constexpr int
         delay = 10,
         speed = 2;
+
+    // These are theoretical bounds; we get narrower than this
     constexpr double
         dist_min = 1,
-        time_min = dist_min / speed;
-        // we can get narrower than this
-        // dist_max = 100*std::numbers::sqrt2,
-        // time_max = dist_max / speed;
+        time_min = dist_min / speed,
+        dist_max = 100*std::numbers::sqrt2,
+        time_max = dist_max / speed;
 
     class Waypoint {
     public:
-        const int x, y, penalty = 0;
+        const int x, y, penalty;
+        const double time_min;
+
+    private:
+        Waypoint(int x, int y, int xmin, int ymin, int penalty = 0):
+            x(x), y(y), penalty(penalty),
+            time_min(sqrt(xmin*xmin + ymin*ymin) / speed) { }
+
+    public:
+        Waypoint(int x, int y, int penalty = 0): Waypoint(
+            x, y, std::min(x, 100-x), std::min(y, 100-y), penalty
+        ) { }
 
         static Waypoint read(std::istream &in) {
             // This is a bottleneck. The following code is a replacement for the typical strategy of
@@ -62,33 +74,57 @@ namespace {
         }
     };
 
+    std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
+        out << "x=" << w.x
+            << " y=" << w.y
+            << " penalty=" << w.penalty
+            << " time_min=" << w.time_min;
+        return out;
+    }
+
 
     class OptimisedWaypoint {
     public:
         const Waypoint &waypoint;
-        const double best_cost = 0;
-        const int penalty = 0;
+        const double best_cost, invariant_cost, cost_min;
+        const int penalty;
+
+        OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0, int penalty = 0):
+            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - penalty),
+            cost_min(waypoint.time_min + invariant_cost), penalty(penalty) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            return time + invariant_cost() + delay;
+            return time + invariant_cost + delay;
         }
 
-        double invariant_cost() const {
-            return best_cost - penalty;
+        double cost_max() const {
+            return waypoint.time_max() + invariant_cost;
         }
 
         void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
-            into.emplace(invariant_cost(), *this);
+            into.emplace(cost_min, *this);
         }
     };
 
+    std::ostream &operator<<(std::ostream &out, const OptimisedWaypoint &ow) {
+        out << ow.waypoint
+            << " best_cost=" << ow.best_cost
+            << " inv_cost=" << ow.invariant_cost
+            << " cost_min=" << ow.cost_min
+            << " penalty=" << ow.penalty;
+        return out;
+    }
+
 
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
-        const auto &front = *opt_waypoints.cbegin();
-        double to_exceed = front.first + front.second.waypoint.time_max() - time_min;
-        auto prune_from = opt_waypoints.lower_bound(to_exceed);
+        const OptimisedWaypoint &front = opt_waypoints.cbegin()->second;
+        const double to_exceed = front.cost_max();
+        auto prune_from = opt_waypoints.upper_bound(to_exceed);
+        assert(prune_from != opt_waypoints.cbegin());
+
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
+        assert(opt_waypoints.size() > 0);
     }
 
 
@@ -103,6 +139,7 @@ namespace {
             if (best_cost > cost) best_cost = cost;
         }
 
+        assert(best_cost < std::numeric_limits<double>::max());
         return best_cost;
     }
 
@@ -161,7 +198,10 @@ namespace {
             }
             out_act >> time_act;
             std::cout << time_exp << " == " << time_act << std::endl;
-            assert(time_exp == time_act);
+            if (time_exp != time_act) {
+                std::cerr << "Assertion failure" << std::endl;
+                exit(1);
+            }
         }
     }
 
