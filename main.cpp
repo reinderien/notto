@@ -158,7 +158,10 @@ namespace {
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
             assert(!std::isnan(time));
-            assert(time >= time_min && time <= time_max);
+            // We cannot do this because the provided sample_input_large.txt violates the uniqueness specification for
+            // waypoints at (4, 2)
+            // assert(time >= time_min);
+            assert(time <= time_max);
             return time + invariant_cost;
         }
 
