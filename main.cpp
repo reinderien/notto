@@ -81,15 +81,15 @@ namespace {
     private:
         const std::string body_mem;
         const std::string_view body;
-        long i;
-        int x, y, p, case_count = 0;
+        long pos;
+        int x, y, penalty, case_count = 0;
 
     public:
         enum NextState {
             has_next, case_end, err
         };
 
-        WaypointReader(const std::string &body) : body_mem(body), body(body_mem), i(body_mem.size()-1) {
+        WaypointReader(const std::string &body) : body_mem(body), body(body_mem), pos(body_mem.size()-1) {
             NextState expected = advance_state();
             assert(expected == case_end);
         }
@@ -101,14 +101,14 @@ namespace {
         }
 
         bool stream_end() const {
-            return i < 0;
+            return pos < 0;
         }
 
         NextState advance_state() {
-            size_t ix = body.rfind('\n', i-1),
-                   substr_len = i-ix-1;
-            i = ix;
-            std::string_view line = body.substr(ix+1, substr_len);
+            size_t next_pos = body.rfind('\n', pos-1),
+                   substr_len = pos - next_pos - 1;
+            pos = next_pos;
+            std::string_view line = body.substr(next_pos+1, substr_len);
             const char *line_start = line.data(),
                        *line_end = line_start + substr_len;
 
@@ -123,14 +123,14 @@ namespace {
             r = std::from_chars(r.ptr+1, line_end, y);
             if (r.ec != success) return err;
 
-            r = std::from_chars(r.ptr+1, line_end, p);
+            r = std::from_chars(r.ptr+1, line_end, penalty);
             if (r.ec != success) return err;
 
             return has_next;
         }
 
         Waypoint get_next() const {
-            return Waypoint(x, y, p);
+            return Waypoint(x, y, penalty);
         }
     };
 
@@ -181,8 +181,6 @@ namespace {
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
         const double to_exceed = opt_waypoints.cbegin()->second.cost_max();
         auto prune_from = opt_waypoints.upper_bound(to_exceed);
-        assert(prune_from != opt_waypoints.cbegin());
-
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
         assert(opt_waypoints.size() > 0);
     }
