@@ -9,7 +9,7 @@ Given that every waypoint requires the choice of skip-or-not, a brute-force impl
 Quadratic
 ---------
 
-The first complexity reduction to O(n^2) comes by:
+The first complexity reduction to O(n²) comes by:
 
 - traversing, in the outer loop, "visited" waypoints in reverse order
 - for each visited waypoint, in an inner loop, traversing all "skip-to" waypoints after the visited waypoint in forward
@@ -42,32 +42,35 @@ The only term that varies is the distance, and this distance has bounds:
     minimum time = 0.5
     maximum time ~ 70.7
 
+We can do better than those theoretical bounds, because individual waypoints can have distance minima and maxima based
+on their position:
+
+    minimum distance = sqrt(min(x, 100-x)² + min(y, 100-y)²)
+    maximum distance = sqrt(max(x, 100-x)² + max(y, 100-y)²)
+
 Due to those bounds, and due to the invariant costs being overwhelmingly greater for non-trivial input, the inner-loop
 sequence of optimised waypoints can be sorted by invariant cost and pruned. In the outer loop, sort the sequence of
-optimised waypoints in increasing order by the sum of invariant costs of each waypoint; the fixed delay can be omitted.
-In C++, rather than sorting, use a self-sorted container, `multimap` with the key being the invariant cost. In Python
-the best we can do is logarithmic `bisect.insort()` into a list.
+optimised waypoints in increasing order by the sum of invariant costs of each waypoint. In C++, rather than sorting, use
+a self-sorted container, `multimap` with the key being the invariant cost. In Python the best we can do is logarithmic 
+`bisect.insort()` into a list.
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
 impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
 from "visited" to the first "skip-to" is maximal, and the distance from "visited" to the last "skip-to" before pruning
 is minimal; effectively:
 
-    index        time    invariant   cost
-    -----        ----    ---------   ----
-    first        70.7    a         70.7+a
+    index       invariant   cost
+    -----       ---------   ----
+    first           inv_a   max_time_a + inv_a
     ...
-    prune-here    0.5    b          0.5+b
+    prune_here      inv_b   min_time_b + inv_b
 
-    70.7 - 0.5 + a < b
+    max_time_a + inv_a < min_time_b + inv_b
 
 This pruning step is highly effective, and even for large input produces an optimised waypoint sequence that never
 exceeds 20 elements. `multimap` is typically implemented as a balanced binary tree and has O(log(m)) insertion and
 lookup, `m` as the length of the optimised waypoint sequence. Since the map size remains small, the inner loop becomes
 O(1) amortised over `n`.
-
-Make the pruning even more aggressive: rather than a fixed maximum distance, use the maximum distance from the first 
-waypoint based on the distance to the farthest spatial bound (0 or 100) over both dimensions.
 
 Negative penalty accrual
 ------------------------
@@ -95,22 +98,23 @@ iteration. Unfortunately, any time saved in avoiding root calls is negated by th
 Space
 -----
 
-Loading all waypoints is O(n) in space. Whereas this could be reduced to O(1) by parsing the file in reverse, this
-complexity is not needed due to the upper bound of the problem. Since all waypoints must be spatially unique and since
-coordinates can only exist in the closed interval [1, 99], the maximum number of waypoints is
+Since all waypoints must be spatially unique and since coordinates can only exist in the open interval (0, 100), the
+maximum number of waypoints is
 
-    (99 - 1 + 1)² = 9801
+    (100 - 1)² = 9801
 
 or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems.
+
+Loading all waypoints is O(n) in space, but this algorithm need not hold all waypoints. By parsing the file in reverse
+and only maintaining a working map of optimised waypoints, this cost is reduced to O(1).
 
 Parsing
 -------
 
-`callgrind` profiling reveals a surprising bottleneck, the `istream`-based parse of the input file. The naïve approach
-of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts for some 70% of program execution
-time. The alternative approach written in `Waypoint::read` gets a line and manually applies `stoi()` to the triple,
-bringing the parse step down to about 45% of execution time. Though the actual problem scale does not call for this,
-further improvements could use manually manipulated buffers and/or producer/consumer parallelism.
+`callgrind` profiling reveals a surprising bottleneck: if `istream`-based operations are used to parse the file, that is
+the dominant cost. The naïve approach of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts
+for some 70% of program execution time. The alternative approach written in `WaypointReader` is to read the entire file
+into memory and then do a low-level reverse parse. This brings the parse step down to about 27% of execution time.
 
 Performance
 ===========
@@ -124,5 +128,5 @@ and benchmarking three cases, all times in approximate milliseconds:
     Dataset             C++20      CPython 3.10.5
     -------             -----      --------------
     all testcases           4                  29
-    9801 waypoints          7                  80
-    1,000,000 waypoints   140                5733
+    9801 waypoints          6                  80
+    1,000,000 waypoints    90                5733
