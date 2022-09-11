@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import sys
-from bisect import insort, bisect
+from bisect import bisect
 from io import StringIO
 from math import sqrt
 from pathlib import Path
 from sys import stdin, stdout
-from typing import Iterator, NamedTuple, Sequence, TextIO, Iterable, Optional
+from typing import Iterator, Optional, NamedTuple, Sequence, TextIO
 
 NDEBUG = True
 
