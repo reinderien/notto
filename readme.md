@@ -129,4 +129,4 @@ and benchmarking three cases, all times in approximate milliseconds:
     -------             -----      --------------
     all testcases           4                  29
     9801 waypoints          6                  80
-    1,000,000 waypoints    90                5733
+    1,000,000 waypoints    86                5733

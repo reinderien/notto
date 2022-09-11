@@ -177,8 +177,8 @@ namespace {
             return waypoint.time_max() + invariant_cost;
         }
 
-        void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
-            into.emplace(cost_min, *this);
+        bool emplace(std::multimap<double, OptimisedWaypoint> &into) const {
+            return into.cbegin() == into.emplace(cost_min, *this);
         }
 
         void output(std::ostream &out) const {
@@ -200,8 +200,7 @@ namespace {
     }
 
 
-    void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
-        const double to_exceed = opt_waypoints.cbegin()->second.cost_max();
+    void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints, double to_exceed) {
         auto prune_from = opt_waypoints.upper_bound(to_exceed);
         assert(prune_from != opt_waypoints.cbegin());
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
@@ -227,6 +226,7 @@ namespace {
     class Solver {
     private:
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
+        double acceptable_cost = std::numeric_limits<double>::max();
         int total_penalty = 0;
         static const OptimisedWaypoint tail;
 
@@ -249,11 +249,13 @@ namespace {
             total_penalty += visited.penalty;
 
             double best_cost = get_best_cost(visited, opt_waypoints);
-
             OptimisedWaypoint new_opt(visited, best_cost, visited.penalty);
-            new_opt.emplace(opt_waypoints);
             assert(new_opt.is_sane());
-            prune(opt_waypoints);
+
+            if (new_opt.cost_min <= acceptable_cost && new_opt.emplace(opt_waypoints)) {
+                acceptable_cost = new_opt.cost_max();
+                prune(opt_waypoints, acceptable_cost);
+            }
         }
 
         double finish() const {
