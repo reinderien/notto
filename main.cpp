@@ -137,7 +137,7 @@ namespace {
 
     class OptimisedWaypoint {
     public:
-        const Waypoint &waypoint;
+        const Waypoint waypoint;
         const double best_cost, invariant_cost, cost_min;
         const int penalty;
 
