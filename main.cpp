@@ -88,20 +88,18 @@ namespace {
 
     class WaypointReader {
     private:
+        static const std::invalid_argument parse_error;
+
         const std::string body_mem;
         const std::string_view body_view;
         long pos;
         int x, y, penalty, case_count = 0;
 
     public:
-        enum NextState {
-            has_next, case_end, err
-        };
-
         WaypointReader(const std::string &body_str):
             body_mem(body_str), body_view(body_mem), pos(body_view.size()-1) {
-            NextState expected = advance_state();
-            assert(expected == case_end);
+            if (advance_state())
+                throw std::invalid_argument("Invalid terminator");
         }
 
         static WaypointReader from_stream(std::istream &in) {
@@ -114,7 +112,7 @@ namespace {
             return pos < 0;
         }
 
-        NextState advance_state() {
+        bool advance_state() {
             size_t next_pos = body_view.rfind('\n', pos-1),
                    substr_len = pos - next_pos - 1;
             pos = next_pos;
@@ -123,26 +121,35 @@ namespace {
                        *line_end = line_start + substr_len;
 
             std::from_chars_result r = std::from_chars(line_start, line_end, x);
-            if (r.ec != success) return err;
+            if (r.ec != success)
+                throw parse_error;
 
             if (r.ptr >= line_end) {
-                if (x == case_count) return case_end;
-                return err;
+                if (x == case_count) {
+                    case_count = 0;
+                    return false;
+                }
+                throw parse_error;
             }
 
             r = std::from_chars(r.ptr+1, line_end, y);
-            if (r.ec != success) return err;
+            if (r.ec != success)
+                throw parse_error;
 
             r = std::from_chars(r.ptr+1, line_end, penalty);
-            if (r.ec != success) return err;
+            if (r.ec != success || r.ptr != line_end)
+                throw parse_error;
 
-            return has_next;
+            case_count++;
+            return true;
         }
 
         Waypoint get_next() const {
             return Waypoint(x, y, penalty);
         }
     };
+
+    const std::invalid_argument WaypointReader::parse_error("Invalid input line");
 
 
     class OptimisedWaypoint {
@@ -220,7 +227,7 @@ namespace {
     private:
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
         int total_penalty = 0;
-        const OptimisedWaypoint tail = OptimisedWaypoint(Waypoint(edge, edge));
+        static const OptimisedWaypoint tail;
 
     public:
         Solver() {
@@ -255,6 +262,8 @@ namespace {
         }
     };
 
+    const OptimisedWaypoint Solver::tail(Waypoint(edge, edge));
+
 
     void process_streams(std::istream &in, std::ostream &out) {
         constexpr std::ios::iostate mask = std::ios::failbit | std::ios::badbit;
@@ -268,10 +277,11 @@ namespace {
 
         while (!reader.stream_end()) {
             Solver solver;
+            assert(solver.is_sane());
 
-            while (reader.advance_state() == WaypointReader::has_next) {
-                assert(solver.is_sane());
+            while (reader.advance_state()) {
                 solver.feed(reader.get_next());
+                assert(solver.is_sane());
             }
             times.push_back(solver.finish());
         }
