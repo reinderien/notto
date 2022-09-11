@@ -225,10 +225,11 @@ namespace {
 
     class Solver {
     private:
+        static const OptimisedWaypoint tail;
+
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
         double acceptable_cost = std::numeric_limits<double>::max();
         int total_penalty = 0;
-        static const OptimisedWaypoint tail;
 
     public:
         Solver() {
