@@ -156,7 +156,7 @@ namespace {
         }
 
         static void emplace(const OptimisedWaypoint &ow, std::multimap<double, OptimisedWaypoint> &into) {
-            into.insert(std::multimap<double, OptimisedWaypoint>::value_type(ow.cost_min, ow));
+            into.emplace(ow.cost_min, ow);
         }
 
         void output(std::ostream &out) const {
@@ -177,9 +177,9 @@ namespace {
         return out;
     }
 
+
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
-        const OptimisedWaypoint &front = opt_waypoints.cbegin()->second;
-        const double to_exceed = front.cost_max();
+        const double to_exceed = opt_waypoints.cbegin()->second.cost_max();
         auto prune_from = opt_waypoints.upper_bound(to_exceed);
         assert(prune_from != opt_waypoints.cbegin());
 
@@ -209,26 +209,25 @@ namespace {
     private:
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
         int total_penalty = 0;
-        static constexpr Waypoint wtail = Waypoint(edge, edge);
-        const OptimisedWaypoint tail = OptimisedWaypoint(wtail);
+        const OptimisedWaypoint tail = OptimisedWaypoint(Waypoint(edge, edge));
 
     public:
         Solver() {
             OptimisedWaypoint::emplace(tail, opt_waypoints);
-            assert_sane();
+            assert(is_sane());
         }
 
-        void assert_sane() const {
+        bool is_sane() const {
             for (auto pair: opt_waypoints)
-                assert(pair.second.is_sane());
+                if (!pair.second.is_sane()) return false;
+            return true;
         }
 
         void feed(const Waypoint &visited) {
             assert(visited.is_sane());
-            total_penalty += visited.penalty;
+            assert(is_sane());
 
-            for (auto pair: opt_waypoints)
-                assert(pair.second.is_sane());
+            total_penalty += visited.penalty;
 
             double best_cost = get_best_cost(visited, opt_waypoints);
 
@@ -260,7 +259,7 @@ namespace {
             Solver solver;
 
             while (reader.advance_state() == WaypointReader::has_next) {
-                solver.assert_sane();
+                assert(solver.is_sane());
                 solver.feed(reader.get_next());
             }
             times.push_back(solver.finish());
