@@ -33,11 +33,12 @@ namespace {
 
     constexpr std::errc success = std::errc();
 
+
     double time_to(int dx, int dy) {
         // std::hypot(dx, dy) makes better use of the library but is much slower
 
-        assert(dx >= -100); assert(dx <=  100);
-        assert(dy >= -100); assert(dy <=  100);
+        assert(dx >= -edge); assert(dx <= edge);
+        assert(dy >= -edge); assert(dy <= edge);
 
         // We cannot assert that this time is within time_min and time_max, due to the case where time_min() is called
         // on the endpoints
