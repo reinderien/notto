@@ -7,6 +7,9 @@ from pathlib import Path
 from sys import stdin, stdout
 from typing import Iterator, NamedTuple, Sequence, TextIO
 
+
+NDEBUG = True
+
 DELAY = 10        # seconds
 SPEED = 2         # metres per second
 EDGE = 100        # metres
@@ -19,8 +22,9 @@ TIME_MAX = DISTANCE_MAX / SPEED
 
 
 def time_to(dx: int, dy: int) -> float:
-    assert -EDGE <= dx <= EDGE
-    assert -EDGE <= dy <= EDGE
+    if not NDEBUG:
+        assert -EDGE <= dx <= EDGE
+        assert -EDGE <= dy <= EDGE
 
     return sqrt(dx**2 + dy**2) / SPEED
 
@@ -79,7 +83,8 @@ class OptimisedWaypoint(NamedTuple):
 
     def cost_from(self, visited: Waypoint) -> float:
         time = visited.time_to(self.waypoint)
-        assert time <= TIME_MAX
+        if not NDEBUG:
+            assert time <= TIME_MAX
         return time + self.invariant_cost
 
     @property
@@ -105,34 +110,51 @@ class OptimisedWaypoint(NamedTuple):
 def prune(opt_waypoints: list[OptimisedWaypoint], to_exceed: float) -> None:
     # opt_waypoints must be in increasing order of invariant cost
     prune_from = bisect(a=opt_waypoints, x=to_exceed, key=OptimisedWaypoint.sort_key)
-    assert prune_from > 0
+    if not NDEBUG:
+        assert prune_from > 0
     del opt_waypoints[prune_from:]
 
 
 def possible_costs(visited: Waypoint, opt_waypoints: Sequence[OptimisedWaypoint]) -> Iterator[float]:
     for skipto in opt_waypoints:
-        assert skipto.is_sane
+        if not NDEBUG:
+            assert skipto.is_sane
         yield skipto.cost_from(visited)
 
 
-def solve(waypoints: Sequence[Waypoint]) -> float:
-    tail = OptimisedWaypoint.with_cost(waypoint=waypoints[-1])
-    opt_waypoints = [tail]
-    acceptable_cost = float('inf')
-    total_penalty = 0
+class Solver:
+    HEAD = Waypoint(x=0, y=0)
+    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=100, y=100))
 
-    for visited in waypoints[-2::-1]:
-        total_penalty += visited.penalty
+    def __init__(self) -> None:
+        self.opt_waypoints = [self.TAIL]
+        self.acceptable_cost = float('inf')
+        self.total_penalty = 0
 
-        best_cost = min(possible_costs(visited, opt_waypoints))
+    @property
+    def is_sane(self) -> bool:
+        return all(ow.is_sane for ow in self.opt_waypoints)
+
+    def feed(self, visited: Waypoint) -> None:
+        if not NDEBUG:
+            assert visited.is_sane
+            assert self.is_sane
+
+        self.total_penalty += visited.penalty
+
+        best_cost = min(possible_costs(visited, self.opt_waypoints))
         new_opt = OptimisedWaypoint.with_cost(waypoint=visited, best_cost=best_cost)
-        assert new_opt.is_sane
+        if not NDEBUG:
+            assert new_opt.is_sane
 
-        if new_opt.cost_min <= acceptable_cost and new_opt.emplace(opt_waypoints):
-            acceptable_cost = new_opt.cost_max
-            prune(opt_waypoints, acceptable_cost)
+        if new_opt.cost_min <= self.acceptable_cost and new_opt.emplace(self.opt_waypoints):
+            self.acceptable_cost = new_opt.cost_max
+            prune(self.opt_waypoints, self.acceptable_cost)
 
-    return best_cost + total_penalty
+    def finish(self) -> float:
+        visited = self.HEAD
+        best_cost = min(possible_costs(visited, self.opt_waypoints))
+        return best_cost + self.total_penalty
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
@@ -140,13 +162,21 @@ def process_stream(in_: TextIO, out: TextIO) -> None:
         n = int(in_.readline())
         if n < 1:
             break
-        waypoints = (
-            Waypoint(x=0, y=0),
-            *(Waypoint.from_line(in_.readline()) for _ in range(n)),
-            Waypoint(x=100, y=100),
-        )
-        cost = solve(waypoints)
-        out.write(f'{cost:.3f}\n')
+
+        solver = Solver()
+        if not NDEBUG:
+            assert solver.is_sane
+
+        waypoints = [
+            Waypoint.from_line(in_.readline())
+            for _ in range(n)
+        ]
+        for visited in waypoints[::-1]:
+            solver.feed(visited)
+            if not NDEBUG:
+                assert solver.is_sane
+
+        out.write(f'{solver.finish():.3f}\n')
 
 
 def test() -> None:
