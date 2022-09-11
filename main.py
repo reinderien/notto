@@ -5,8 +5,7 @@ from io import StringIO
 from math import sqrt
 from pathlib import Path
 from sys import stdin, stdout
-from typing import Iterator, NamedTuple, Sequence, TextIO
-
+from typing import Iterator, NamedTuple, Sequence, TextIO, Iterable, Optional
 
 NDEBUG = True
 
@@ -42,10 +41,6 @@ class Waypoint(NamedTuple):
     y: int
     penalty: int = 0
 
-    @classmethod
-    def from_line(cls, line: str) -> 'Waypoint':
-        return cls(*(int(t) for t in line.split()))
-
     def time_to(self, other: 'Waypoint') -> float:
         return time_to(self.x - other.x, self.y - other.y)
 
@@ -64,6 +59,40 @@ class Waypoint(NamedTuple):
     def is_sane(self) -> bool:
         return (0 <= self.x <= EDGE and
                 0 <= self.y <= EDGE)
+
+
+class WaypointReader:
+    def __init__(self, in_: TextIO) -> None:
+        self.lines = iter(reversed(in_.readlines()))
+        self.case_count = 0
+        self.next_waypoint: Optional[Waypoint] = None
+        assert not self.advance_state()
+
+    @property
+    def stream_end(self) -> bool:
+        return self.lines is None
+
+    def advance_state(self) -> bool:
+        line = next(self.lines, None)
+        if line is None:
+            self.lines = None
+            return False
+
+        fields = [int(f) for f in line.split()]
+
+        if len(fields) == 1:
+            count, = fields
+            if count == self.case_count:
+                self.case_count = 0
+                return False
+            raise ValueError()
+
+        self.next_waypoint = Waypoint(*fields)
+        self.case_count += 1
+        return True
+
+    def get_next(self) -> Waypoint:
+        return self.next_waypoint
 
 
 class OptimisedWaypoint(NamedTuple):
@@ -158,25 +187,26 @@ class Solver:
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
-    while True:
-        n = int(in_.readline())
-        if n < 1:
-            break
+    reader = WaypointReader(in_)
 
+    times = []
+
+    while True:
         solver = Solver()
         if not NDEBUG:
             assert solver.is_sane
 
-        waypoints = [
-            Waypoint.from_line(in_.readline())
-            for _ in range(n)
-        ]
-        for visited in waypoints[::-1]:
-            solver.feed(visited)
+        while reader.advance_state():
+            solver.feed(reader.get_next())
             if not NDEBUG:
                 assert solver.is_sane
 
-        out.write(f'{solver.finish():.3f}\n')
+        if reader.stream_end:
+            break
+        times.append(solver.finish())
+
+    for time in times[::-1]:
+        out.write(f'{time:.3f}\n')
 
 
 def test() -> None:

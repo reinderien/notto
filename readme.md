@@ -105,8 +105,11 @@ maximum number of waypoints is
 
 or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems.
 
-Loading all waypoints is O(n) in space, but this algorithm need not hold all waypoints. By parsing the file in reverse
-and only maintaining a working map of optimised waypoints, this cost is reduced to O(1).
+This algorithm need not hold all waypoints, since it can process the input in reverse with amortised O(t) space
+complexity, t the number of test cases. A length-t output sequence must be accumulated and then reversed.
+
+However, since the specification requires a stream that does not support random access, this algorithm needs to load the
+input an entire problem case at a time, resulting in O(n).
 
 Parsing
 -------
