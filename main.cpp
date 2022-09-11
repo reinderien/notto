@@ -47,11 +47,11 @@ namespace {
 
 
     int coord_min(int x) {
-        return std::max(1, std::min(x, edge-x));
+        return std::max(1, std::min(edge-x, x));
     }
 
     int coord_max(int x) {
-        return std::max(x, edge-x);
+        return std::max(edge-x, x);
     }
 
 
@@ -159,9 +159,9 @@ namespace {
         const double best_cost, invariant_cost, cost_min;
         const int penalty;
 
-        OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0, int penalty = 0):
-            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - penalty + delay),
-            cost_min(waypoint.time_min() + invariant_cost), penalty(penalty) { }
+        OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0):
+            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - waypoint.penalty + delay),
+            cost_min(waypoint.time_min() + invariant_cost), penalty(waypoint.penalty) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
@@ -249,7 +249,7 @@ namespace {
             total_penalty += visited.penalty;
 
             double best_cost = get_best_cost(visited, opt_waypoints);
-            OptimisedWaypoint new_opt(visited, best_cost, visited.penalty);
+            OptimisedWaypoint new_opt(visited, best_cost);
             assert(new_opt.is_sane());
 
             if (new_opt.cost_min <= acceptable_cost && new_opt.emplace(opt_waypoints)) {
