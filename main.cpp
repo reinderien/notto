@@ -20,9 +20,9 @@ using namespace std::string_view_literals;
 
 namespace {
     constexpr int
-        delay = 10,
-        speed = 2,
-        edge = 100;
+        delay = 10,  // seconds
+        speed = 2,   // metres per second
+        edge = 100;  // metres
 
     // These are theoretical bounds; we get narrower than this
     constexpr double
@@ -39,7 +39,18 @@ namespace {
         assert(dx >= -100); assert(dx <=  100);
         assert(dy >= -100); assert(dy <=  100);
 
+        // We cannot assert that this time is within time_min and time_max, due to the case where time_min() is called
+        // on the endpoints
         return sqrt(dx*dx + dy*dy) / speed;
+    }
+
+
+    int coord_min(int x) {
+        return std::max(1, std::min(x, edge-x));
+    }
+
+    int coord_max(int x) {
+        return std::max(x, edge-x);
     }
 
 
@@ -52,17 +63,15 @@ namespace {
         }
 
         double time_min() const {
-            return ::time_to(std::min(x, edge-x), std::min(y, edge-y));
+            return ::time_to(coord_min(x), coord_min(y));
         }
 
         double time_max() const {
-            return ::time_to(std::max(x, edge-x), std::max(y, edge-y));
+            return ::time_to(coord_max(x), coord_max(y));
         }
 
         void output(std::ostream &out) const {
-            out << "x=" << x
-                << " y=" << y
-                << " penalty=" << penalty;
+            out << "x=" << x << " y=" << y << " penalty=" << penalty;
         }
 
         bool is_sane() const {
@@ -80,7 +89,7 @@ namespace {
     class WaypointReader {
     private:
         const std::string body_mem;
-        const std::string_view body;
+        const std::string_view body_view;
         long pos;
         int x, y, penalty, case_count = 0;
 
@@ -89,7 +98,8 @@ namespace {
             has_next, case_end, err
         };
 
-        WaypointReader(const std::string &body) : body_mem(body), body(body_mem), pos(body_mem.size()-1) {
+        WaypointReader(const std::string &body_str):
+            body_mem(body_str), body_view(body_mem), pos(body_view.size()-1) {
             NextState expected = advance_state();
             assert(expected == case_end);
         }
@@ -105,10 +115,10 @@ namespace {
         }
 
         NextState advance_state() {
-            size_t next_pos = body.rfind('\n', pos-1),
+            size_t next_pos = body_view.rfind('\n', pos-1),
                    substr_len = pos - next_pos - 1;
             pos = next_pos;
-            std::string_view line = body.substr(next_pos+1, substr_len);
+            std::string_view line = body_view.substr(next_pos+1, substr_len);
             const char *line_start = line.data(),
                        *line_end = line_start + substr_len;
 
@@ -148,6 +158,7 @@ namespace {
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
             assert(!std::isnan(time));
+            assert(time >= time_min && time <= time_max);
             return time + invariant_cost;
         }
 
@@ -155,8 +166,8 @@ namespace {
             return waypoint.time_max() + invariant_cost;
         }
 
-        static void emplace(const OptimisedWaypoint &ow, std::multimap<double, OptimisedWaypoint> &into) {
-            into.emplace(ow.cost_min, ow);
+        void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
+            into.emplace(cost_min, *this);
         }
 
         void output(std::ostream &out) const {
@@ -181,8 +192,8 @@ namespace {
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints) {
         const double to_exceed = opt_waypoints.cbegin()->second.cost_max();
         auto prune_from = opt_waypoints.upper_bound(to_exceed);
+        assert(prune_from != opt_waypoints.cbegin());
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
-        assert(opt_waypoints.size() > 0);
     }
 
 
@@ -194,8 +205,7 @@ namespace {
 
         for (const OptimisedWaypoint &skipto: opt_waypoints | std::views::values) {
             assert(skipto.is_sane());
-            double cost = skipto.cost_from(visited);
-            if (best_cost > cost) best_cost = cost;
+            best_cost = std::min(best_cost, skipto.cost_from(visited));
         }
 
         assert(best_cost < std::numeric_limits<double>::max());
@@ -211,7 +221,7 @@ namespace {
 
     public:
         Solver() {
-            OptimisedWaypoint::emplace(tail, opt_waypoints);
+            tail.emplace(opt_waypoints);
             assert(is_sane());
         }
 
@@ -230,12 +240,12 @@ namespace {
             double best_cost = get_best_cost(visited, opt_waypoints);
 
             OptimisedWaypoint new_opt(visited, best_cost, visited.penalty);
-            OptimisedWaypoint::emplace(new_opt, opt_waypoints);
+            new_opt.emplace(opt_waypoints);
             assert(new_opt.is_sane());
             prune(opt_waypoints);
         }
 
-        double finish() {
+        double finish() const {
             constexpr Waypoint visited(0, 0);
             double best_cost = get_best_cost(visited, opt_waypoints);
             return best_cost + total_penalty;
@@ -263,8 +273,8 @@ namespace {
             times.push_back(solver.finish());
         }
 
-        for (auto t = times.crbegin(); t != times.crend(); t++)
-            out << *t << '\n';
+        for (auto time = times.crbegin(); time != times.crend(); time++)
+            out << *time << '\n';
     }
 
 
