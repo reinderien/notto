@@ -281,10 +281,12 @@ class AnimateContext:
                 ow.waypoint for ow in step.opt_waypoints[step.prune_from:]
             }:
                 fill = '#952d1a'  # dark red
-            elif step.new_opt and waypoint == step.new_opt.waypoint:
-                fill = '#dfc400'  # gold
             elif step.skipto and waypoint == step.skipto.waypoint:
                 fill = '#93cadb'  # light blue
+            elif waypoint == step.opt_waypoints[0].waypoint:
+                fill = '#8916a6'  # purple
+            elif step.new_opt and waypoint == step.new_opt.waypoint:
+                fill = '#dfc400'  # gold
             elif waypoint == step.visited:
                 fill = '#6fdc83'  # light green
             elif waypoint in {
