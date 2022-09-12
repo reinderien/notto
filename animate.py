@@ -308,30 +308,37 @@ class AnimateContext:
         else:
             target = step.new_opt
 
-        if source and target:
-            # cost = distance/speed + best_cost - penalty + delay
-            # (acceptable_cost - invariant)*speed = reachable distance
-            reachable_dist = (step.acceptable_cost - target.invariant_cost) * SPEED
-            radius = max(2., reachable_dist*self.SCALE)
+        if not (source and target):
+            return
 
-            if step.prune_from or step.acceptable_cost < target.cost_min:
-                outline = '#d33a23'  # red
-            else:
-                outline = '#76d323'  # green
+        # cost = distance/speed + best_cost - penalty + delay
+        # (acceptable_cost - invariant)*speed = reachable distance
+        reachable_dist = (step.acceptable_cost - target.invariant_cost) * SPEED
+        radius = max(5., reachable_dist*self.SCALE)
 
+        if step.prune_from or step.acceptable_cost < target.cost_min:
+            outline = '#d33a23'  # red
+        else:
+            outline = '#76d323'  # green
+
+        candidates = (
+            (time_to(target.waypoint.x-x, target.waypoint.y-y) * SPEED, x, y)
             for x, y in (
                 (0, 0),
                 (0, EDGE),
                 (EDGE, 0),
                 (EDGE, EDGE),
-            ):
-                cx = x*self.SCALE
-                cy = y*self.SCALE
-                self.reachable_ids.append(self.canvas.create_oval(
-                    cx-radius, cy-radius,
-                    cx+radius, cy+radius,
-                    width=2, outline=outline,
-                ))
+            )
+        )
+        min_dist, x, y = min(candidates)
+
+        cx = x*self.SCALE
+        cy = y*self.SCALE
+        self.reachable_ids.append(self.canvas.create_oval(
+            cx-radius, cy-radius,
+            cx+radius, cy+radius,
+            width=2, outline=outline,
+        ))
 
     def draw_comparison(self, step: Solver) -> None:
         if self.comparison_ray_id:
