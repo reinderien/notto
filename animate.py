@@ -239,6 +239,8 @@ class AnimateContext:
         self.canvas.pack(expand=True, fill='both')
         self.waypoint_oval_ids: dict[Waypoint, int] = {}
 
+        self.reachable_ids: list[int] = []
+
         self.draw()
 
     def draw(self) -> None:
@@ -246,7 +248,12 @@ class AnimateContext:
         if step is None:
             return
 
-        # First, draw all points if they're not already in the dict
+        self.create_waypoints(step)
+        self.colour_waypoints(step)
+        self.draw_reachable(step)
+        self.tk.after(2000, self.draw)
+
+    def create_waypoints(self, step: Solver) -> None:
         for waypoint in (
             step.visited,
             step.TAIL.waypoint,
@@ -262,9 +269,11 @@ class AnimateContext:
                 oval_id = self.canvas.create_oval(
                     cx-radius, cy-radius,
                     cx+radius, cy+radius,
-                    width=0, fill='#203440')
+                    width=0,
+                )
                 self.waypoint_oval_ids[waypoint] = oval_id
 
+    def colour_waypoints(self, step: Solver) -> None:
         for waypoint, oval_id in tuple(self.waypoint_oval_ids.items()):
             if step.prune_from is not None and waypoint in {
                 ow.waypoint for ow in step.opt_waypoints[step.prune_from:]
@@ -279,15 +288,46 @@ class AnimateContext:
             elif waypoint in {
                 ow.waypoint for ow in step.opt_waypoints
             }:
-                fill = '#203440'  # dark blue
+                fill = '#577d94'  # grey blue
             else:
-                self.canvas.delete(oval_id)
-                del self.waypoint_oval_ids[waypoint]
-                continue
+                fill = '#203440'  # dark blue
 
             self.canvas.itemconfig(oval_id, fill=fill)
 
-        self.tk.after(100, self.draw)
+    def draw_reachable(self, step: Solver) -> None:
+        while self.reachable_ids:
+            self.canvas.delete(self.reachable_ids.pop())
+
+        source = step.opt_waypoints[0].waypoint
+        if step.prune_from:
+            target = step.opt_waypoints[-1]
+        else:
+            target = step.new_opt
+
+        if source and target:
+            # cost = distance/speed + best_cost - penalty + delay
+            # (acceptable_cost - invariant)*speed = reachable distance
+            reachable_dist = (step.acceptable_cost - target.invariant_cost) * SPEED
+            radius = max(2., reachable_dist*self.SCALE)
+
+            if step.prune_from or step.acceptable_cost < target.cost_min:
+                outline = '#d33a23'  # red
+            else:
+                outline = '#76d323'  # green
+
+            for x, y in (
+                (0, 0),
+                (0, EDGE),
+                (EDGE, 0),
+                (EDGE, EDGE),
+            ):
+                cx = x*self.SCALE
+                cy = y*self.SCALE
+                self.reachable_ids.append(self.canvas.create_oval(
+                    cx-radius, cy-radius,
+                    cx+radius, cy+radius,
+                    width=2, outline=outline,
+                ))
 
     def run(self) -> None:
         self.tk.mainloop()
