@@ -27,8 +27,8 @@ namespace {
     // These are theoretical bounds; we get narrower than this
     constexpr double
         dist_min = 1,
-        time_min = dist_min / speed,
         dist_max = edge*std::numbers::sqrt2,
+        time_min = dist_min / speed,
         time_max = dist_max / speed;
 
     constexpr std::errc success = std::errc();

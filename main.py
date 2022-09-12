@@ -15,8 +15,8 @@ EDGE = 100        # metres
 
 # These are theoretical bounds; we get narrower than this
 DISTANCE_MIN = 1
-TIME_MIN = DISTANCE_MIN / SPEED
 DISTANCE_MAX = sqrt(2) * 100
+TIME_MIN = DISTANCE_MIN / SPEED
 TIME_MAX = DISTANCE_MAX / SPEED
 
 
