@@ -67,20 +67,21 @@ class Waypoint(NamedTuple):
 
 class WaypointReader:
     def __init__(self, in_: TextIO) -> None:
-        self.lines = iter(reversed(in_.readlines()))
+        self.lines = in_.readlines()
+        self.pos = len(self.lines) - 1
         self.case_count = 0
         self.next_waypoint: Optional[Waypoint] = None
         assert not self.advance_state()
 
     @property
     def stream_end(self) -> bool:
-        return self.lines is None
+        return self.pos < 0
 
     def advance_state(self) -> bool:
-        line = next(self.lines, None)
-        if line is None:
-            self.lines = None
+        if self.stream_end:
             return False
+        line = self.lines[self.pos]
+        self.pos -= 1
 
         fields = [int(f) for f in line.split()]
 
@@ -286,7 +287,7 @@ class AnimateContext:
 
             self.canvas.itemconfig(oval_id, fill=fill)
 
-        self.tk.after(2000, self.draw)
+        self.tk.after(100, self.draw)
 
     def run(self) -> None:
         self.tk.mainloop()
