@@ -19,7 +19,7 @@ EDGE = 100        # metres
 
 # These are theoretical bounds; we get narrower than this
 DISTANCE_MIN = 1
-DISTANCE_MAX = sqrt(2) * 100
+DISTANCE_MAX = sqrt(2) * EDGE
 TIME_MIN = DISTANCE_MIN / SPEED
 TIME_MAX = DISTANCE_MAX / SPEED
 
@@ -143,7 +143,7 @@ class OptimisedWaypoint(NamedTuple):
 
 class Solver:
     HEAD = Waypoint(x=0, y=0)
-    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=100, y=100))
+    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=EDGE, y=EDGE))
 
     def __init__(self) -> None:
         self.opt_waypoints = [self.TAIL]
@@ -230,7 +230,7 @@ class AnimateContext:
         self.solver = Solver()
         self.steps: Iterator[Solver] = chain(self.solver.iterate_solve(reader), self.solver.finish())
 
-        w = self.SCALE*EDGE
+        w = self.SCALE*(EDGE + 1)
         self.tk = tk.Tk()
         self.tk.geometry(f'{w}x{w}+50+50')
         self.canvas = tk.Canvas(
@@ -240,6 +240,7 @@ class AnimateContext:
         self.waypoint_oval_ids: dict[Waypoint, int] = {}
 
         self.reachable_ids: list[int] = []
+        self.comparison_ray_id: Optional[int] = None
 
         self.draw()
 
@@ -251,7 +252,8 @@ class AnimateContext:
         self.create_waypoints(step)
         self.colour_waypoints(step)
         self.draw_reachable(step)
-        self.tk.after(2000, self.draw)
+        self.draw_comparison(step)
+        self.tk.after(500, self.draw)
 
     def create_waypoints(self, step: Solver) -> None:
         for waypoint in (
@@ -263,8 +265,8 @@ class AnimateContext:
                 if penalty < 1:
                     penalty = 100  # Endpoint
 
-                cx = (waypoint.x + 0.5)*self.SCALE
-                cy = (waypoint.y + 0.5)*self.SCALE
+                cx = waypoint.x*self.SCALE
+                cy = waypoint.y*self.SCALE
                 radius = penalty*self.SCALE/20
                 oval_id = self.canvas.create_oval(
                     cx-radius, cy-radius,
@@ -290,7 +292,9 @@ class AnimateContext:
             }:
                 fill = '#577d94'  # grey blue
             else:
-                fill = '#203440'  # dark blue
+                outline = '#203440'  # dark blue
+                self.canvas.itemconfig(oval_id, outline=outline, fill='', width=2)
+                continue
 
             self.canvas.itemconfig(oval_id, fill=fill)
 
@@ -328,6 +332,31 @@ class AnimateContext:
                     cx+radius, cy+radius,
                     width=2, outline=outline,
                 ))
+
+    def draw_comparison(self, step: Solver) -> None:
+        if self.comparison_ray_id:
+            self.canvas.delete(self.comparison_ray_id)
+
+        if step.prune_from:
+            source = step.opt_waypoints[0].waypoint
+            target = step.opt_waypoints[-1].waypoint
+            outline = '#d33a23'  # red
+        elif step.skipto:
+            source = step.visited
+            target = step.skipto.waypoint
+            outline = '#93cadb'  # light blue
+        elif step.new_opt:
+            source = step.opt_waypoints[0].waypoint
+            target = step.new_opt.waypoint
+            outline = '#dfc400'  # gold
+        else:
+            return
+
+        self.comparison_ray_id = self.canvas.create_line(
+            source.x*self.SCALE, source.y*self.SCALE,
+            target.x*self.SCALE, target.y*self.SCALE,
+            width=2, fill=outline,
+        )
 
     def run(self) -> None:
         self.tk.mainloop()
