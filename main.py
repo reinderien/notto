@@ -15,7 +15,7 @@ EDGE = 100        # metres
 
 # These are theoretical bounds; we get narrower than this
 DISTANCE_MIN = 1
-DISTANCE_MAX = sqrt(2) * 100
+DISTANCE_MAX = sqrt(2) * EDGE
 TIME_MIN = DISTANCE_MIN / SPEED
 TIME_MAX = DISTANCE_MAX / SPEED
 
@@ -153,7 +153,7 @@ def possible_costs(visited: Waypoint, opt_waypoints: Sequence[OptimisedWaypoint]
 
 class Solver:
     HEAD = Waypoint(x=0, y=0)
-    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=100, y=100))
+    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=EDGE, y=EDGE))
 
     def __init__(self) -> None:
         self.opt_waypoints = [self.TAIL]
