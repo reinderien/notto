@@ -93,14 +93,11 @@ namespace {
 
         const std::string body_mem;
         const std::string_view body_view;
-        long pos;
-        int x, y, penalty, case_count = 0;
+        long pos = 0;
 
     public:
         WaypointReader(const std::string &body_str):
-            body_mem(body_str), body_view(body_mem), pos(body_view.size()-1) {
-            if (advance_state())
-                throw std::invalid_argument("Invalid terminator");
+            body_mem(body_str), body_view(body_mem) {
         }
 
         static WaypointReader from_stream(std::istream &in) {
@@ -109,29 +106,34 @@ namespace {
             return WaypointReader(incopy.str());
         }
 
-        bool stream_end() const {
-            return pos < 0;
-        }
-
-        bool advance_state() {
-            size_t next_pos = body_view.rfind('\n', pos-1),
-                   substr_len = pos - next_pos - 1;
-            pos = next_pos;
-            std::string_view line = body_view.substr(next_pos+1, substr_len);
+        int get_case_size() {
+            size_t next_pos = body_view.find('\n', pos),
+                   substr_len = next_pos - pos;
+            std::string_view line = body_view.substr(pos, substr_len);
             const char *line_start = line.data(),
                        *line_end = line_start + substr_len;
+            pos = next_pos + 1;
 
+            int size;
+            std::from_chars_result r = std::from_chars(line_start, line_end, size);
+            if (r.ec != success || r.ptr != line_end)
+                throw parse_error;
+
+            return size;
+        }
+
+        Waypoint get_next() {
+            size_t next_pos = body_view.find('\n', pos),
+                   substr_len = next_pos - pos;
+            std::string_view line = body_view.substr(pos, substr_len);
+            const char *line_start = line.data(),
+                       *line_end = line_start + substr_len;
+            pos = next_pos+1;
+
+            int x, y, penalty;
             std::from_chars_result r = std::from_chars(line_start, line_end, x);
             if (r.ec != success)
                 throw parse_error;
-
-            if (r.ptr >= line_end) {
-                if (x == case_count) {
-                    case_count = 0;
-                    return false;
-                }
-                throw parse_error;
-            }
 
             r = std::from_chars(r.ptr+1, line_end, y);
             if (r.ec != success)
@@ -141,11 +143,6 @@ namespace {
             if (r.ec != success || r.ptr != line_end)
                 throw parse_error;
 
-            case_count++;
-            return true;
-        }
-
-        Waypoint get_next() const {
             return Waypoint(x, y, penalty);
         }
     };
@@ -213,9 +210,9 @@ namespace {
     ) {
         double best_cost = std::numeric_limits<double>::max();
 
-        for (const OptimisedWaypoint &skipto: opt_waypoints | std::views::values) {
-            assert(skipto.is_sane());
-            best_cost = std::min(best_cost, skipto.cost_from(visited));
+        for (const OptimisedWaypoint &skipfrom: opt_waypoints | std::views::values) {
+            assert(skipfrom.is_sane());
+            best_cost = std::min(best_cost, skipfrom.cost_from(visited));
         }
 
         assert(best_cost < std::numeric_limits<double>::max());
@@ -223,30 +220,17 @@ namespace {
     }
 
 
-    class Solver {
-    private:
-        static const OptimisedWaypoint tail;
-
+    double solve(WaypointReader &reader, int n) {
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
         double acceptable_cost = std::numeric_limits<double>::max();
         int total_penalty = 0;
 
-    public:
-        Solver() {
-            tail.emplace(opt_waypoints);
-            assert(is_sane());
-        }
+        const OptimisedWaypoint head(Waypoint(0, 0));
+        head.emplace(opt_waypoints);
 
-        bool is_sane() const {
-            for (auto pair: opt_waypoints)
-                if (!pair.second.is_sane()) return false;
-            return true;
-        }
-
-        void feed(const Waypoint &visited) {
+        for (int i = 0; i < n; ++i) {
+            Waypoint visited = reader.get_next();
             assert(visited.is_sane());
-            assert(is_sane());
-
             total_penalty += visited.penalty;
 
             double best_cost = get_best_cost(visited, opt_waypoints);
@@ -259,14 +243,10 @@ namespace {
             }
         }
 
-        double finish() const {
-            constexpr Waypoint visited(0, 0);
-            double best_cost = get_best_cost(visited, opt_waypoints);
-            return best_cost + total_penalty;
-        }
-    };
-
-    const OptimisedWaypoint Solver::tail(Waypoint(edge, edge));
+        constexpr Waypoint visited(edge, edge);
+        double best_cost = get_best_cost(visited, opt_waypoints);
+        return best_cost + total_penalty;
+    }
 
 
     void process_streams(std::istream &in, std::ostream &out) {
@@ -277,21 +257,13 @@ namespace {
 
         WaypointReader reader = WaypointReader::from_stream(in);
 
-        std::vector<double> times;
+        for (;;) {
+            int n = reader.get_case_size();
+            if (n == 0) break;
 
-        while (!reader.stream_end()) {
-            Solver solver;
-            assert(solver.is_sane());
-
-            while (reader.advance_state()) {
-                solver.feed(reader.get_next());
-                assert(solver.is_sane());
-            }
-            times.push_back(solver.finish());
+            double time = solve(reader, n);
+            out << time << '\n';
         }
-
-        for (auto time = times.crbegin(); time != times.crend(); time++)
-            out << *time << '\n';
     }
 
 

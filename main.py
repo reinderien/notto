@@ -5,7 +5,7 @@ from io import StringIO
 from math import sqrt
 from pathlib import Path
 from sys import stdin, stdout
-from typing import Iterator, Optional, NamedTuple, Sequence, TextIO
+from typing import Iterator, NamedTuple, Sequence, TextIO
 
 NDEBUG = True
 
@@ -41,6 +41,10 @@ class Waypoint(NamedTuple):
     y: int
     penalty: int = 0
 
+    @classmethod
+    def from_line(cls, line: str) -> 'Waypoint':
+        return cls(*(int(t) for t in line.split()))
+
     def time_to(self, other: 'Waypoint') -> float:
         return time_to(self.x - other.x, self.y - other.y)
 
@@ -59,40 +63,6 @@ class Waypoint(NamedTuple):
     def is_sane(self) -> bool:
         return (0 <= self.x <= EDGE and
                 0 <= self.y <= EDGE)
-
-
-class WaypointReader:
-    def __init__(self, in_: TextIO) -> None:
-        self.lines = iter(reversed(in_.readlines()))
-        self.case_count = 0
-        self.next_waypoint: Optional[Waypoint] = None
-        assert not self.advance_state()
-
-    @property
-    def stream_end(self) -> bool:
-        return self.lines is None
-
-    def advance_state(self) -> bool:
-        line = next(self.lines, None)
-        if line is None:
-            self.lines = None
-            return False
-
-        fields = [int(f) for f in line.split()]
-
-        if len(fields) == 1:
-            count, = fields
-            if count == self.case_count:
-                self.case_count = 0
-                return False
-            raise ValueError()
-
-        self.next_waypoint = Waypoint(*fields)
-        self.case_count += 1
-        return True
-
-    def get_next(self) -> Waypoint:
-        return self.next_waypoint
 
 
 class OptimisedWaypoint(NamedTuple):
@@ -145,18 +115,18 @@ def prune(opt_waypoints: list[OptimisedWaypoint], to_exceed: float) -> None:
 
 
 def possible_costs(visited: Waypoint, opt_waypoints: Sequence[OptimisedWaypoint]) -> Iterator[float]:
-    for skipto in opt_waypoints:
+    for skipfrom in opt_waypoints:
         if not NDEBUG:
-            assert skipto.is_sane
-        yield skipto.cost_from(visited)
+            assert skipfrom.is_sane
+        yield skipfrom.cost_from(visited)
 
 
 class Solver:
-    HEAD = Waypoint(x=0, y=0)
-    TAIL = OptimisedWaypoint.with_cost(Waypoint(x=EDGE, y=EDGE))
+    HEAD = OptimisedWaypoint.with_cost(Waypoint(x=0, y=0))
+    TAIL = Waypoint(x=EDGE, y=EDGE)
 
     def __init__(self) -> None:
-        self.opt_waypoints = [self.TAIL]
+        self.opt_waypoints = [self.HEAD]
         self.acceptable_cost = float('inf')
         self.total_penalty = 0
 
@@ -181,31 +151,27 @@ class Solver:
             prune(self.opt_waypoints, self.acceptable_cost)
 
     def finish(self) -> float:
-        visited = self.HEAD
+        visited = self.TAIL
         best_cost = min(possible_costs(visited, self.opt_waypoints))
         return best_cost + self.total_penalty
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
-    reader = WaypointReader(in_)
-
-    times = []
-
     while True:
+        n = int(next(in_))
+        if n == 0:
+            break
+
         solver = Solver()
         if not NDEBUG:
             assert solver.is_sane
 
-        while reader.advance_state():
-            solver.feed(reader.get_next())
+        for _ in range(n):
+            solver.feed(Waypoint.from_line(next(in_)))
             if not NDEBUG:
                 assert solver.is_sane
 
-        if reader.stream_end:
-            break
-        times.append(solver.finish())
-
-    for time in times[::-1]:
+        time = solver.finish()
         out.write(f'{time:.3f}\n')
 
 
