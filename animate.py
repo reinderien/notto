@@ -241,6 +241,7 @@ class AnimateContext:
 
         self.reachable_ids: list[int] = []
         self.comparison_ray_id: Optional[int] = None
+        self.path_size = 0
 
         self.draw()
 
@@ -249,11 +250,22 @@ class AnimateContext:
         if step is None:
             return
 
+        self.create_full_path(step)
         self.create_waypoints(step)
         self.colour_waypoints(step)
         self.draw_reachable(step)
         self.draw_comparison(step)
         self.tk.after(500, self.draw)
+
+    def create_full_path(self, step: Solver) -> None:
+        missing = step.waypoints[self.path_size:]
+        for source, dest in zip(missing, missing[1:]):
+            self.canvas.create_line(
+                self.SCALE*source.x, self.SCALE*source.y,
+                self.SCALE*dest.x,   self.SCALE*dest.y,
+                width=1, fill='#203440',  # dark blue
+            )
+        self.path_size = len(step.waypoints)-1
 
     def create_waypoints(self, step: Solver) -> None:
         for waypoint in (
@@ -371,7 +383,7 @@ class AnimateContext:
         self.tk.mainloop()
 
     def finish(self) -> float:
-         return self.solver.final_time
+        return self.solver.final_time
 
 
 def process_stream(in_: TextIO, out: TextIO) -> None:
