@@ -11,18 +11,17 @@ Quadratic
 
 The first complexity reduction to O(n²) comes by:
 
-- traversing, in the outer loop, "visited" waypoints in reverse order
-- for each visited waypoint, in an inner loop, traversing all "skip-to" waypoints after the visited waypoint in forward
-  order
-- for every skip-to waypoint, adding the visited-waypoint penalty to its "accrued penalty" sum
-- interpreting this choice as skipping every waypoint from the visited waypoint up to the skip-to waypoint, and then 
-  accepting the stored best path time from that skip-to waypoint through to the end
+- traversing, in the outer loop, "visited" waypoints
+- for each visited waypoint, in an inner loop, traversing all "skip-from" waypoints to the visited waypoint
+- for every skip-from waypoint, adding the visited-waypoint penalty to its "accrued penalty" sum
+- interpreting this choice as skipping every waypoint from the skip-from waypoint up to the visited waypoint, and then 
+  accepting the stored best path time from that skip-from waypoint through to the beginning
 - calculating the cost of this choice as
 
-    (travel distance from visited to skip_to)/speed + fixed_delay (10s) + (best_time of skip_to waypoint) + accrued_penalty
+    (travel distance from skip_from to visited)/speed + fixed_delay (10s) + (best_time of skip_from waypoint) + accrued_penalty
 
 - storing the minimum cost of the inner loop to the best cost attribute of the visited waypoint
-- iterating the outer loop all the way to the beginning, and returning the best cost of the first waypoint.
+- iterating the outer loop all the way to the end, and returning the best cost of the final waypoint.
 
 Linear
 ------
@@ -56,8 +55,8 @@ a self-sorted container, `multimap` with the key being the invariant cost. In Py
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
 impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
-from "visited" to the first "skip-to" is maximal, and the distance from "visited" to the last "skip-to" before pruning
-is minimal; effectively:
+from "visited" to the first "skip-from" is maximal, and the distance from "visited" to the last "skip-from" before 
+pruning is minimal; effectively:
 
     index       invariant   cost
     -----       ---------   ----
@@ -75,13 +74,13 @@ O(1) amortised over `n`.
 Negative penalty accrual
 ------------------------
 
-Up to now, the inner loop that is aggregated by a `min()` required adding a penalty to every skip-to waypoint in the
+Up to now, the inner loop that is aggregated by a `min()` required adding a penalty to every skip-from waypoint in the
 optimised waypoint sequence. This expense can be reduced from O(m) to O(1), avoiding `m` mutations (indeed, avoiding
 mutation of any kind on the optimised waypoint structures): do not accrue positive penalties in the inner loop. Instead,
 assign the current visited waypoint's penalty as a negative cost component rather than a positive cost component. All
 cost ordering - variant and invariant - remains in increasing order; all relative cost distances remain the same as they
 were; but costs tend to become negative. At the end of the outer loop, compensate by adding the total penalty of all
-waypoints to the cost of the first waypoint.
+waypoints to the cost of the final waypoint.
 
 Norm simplification
 -------------------
@@ -99,17 +98,15 @@ Space
 -----
 
 Since all waypoints must be spatially unique and since coordinates can only exist in the open interval (0, 100), the
-maximum number of waypoints is
+maximum number of waypoints should be
 
     (100 - 1)² = 9801
 
-or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems.
+or a file size of about 85 kB. All waypoints can be trivially held in memory even on embedded systems. (Despite the
+specification promising waypoint uniqueness, the sample data violate this constraint.)
 
-This algorithm need not hold all waypoints, since it can process the input in reverse with amortised O(t) space
-complexity, t the number of test cases. A length-t output sequence must be accumulated and then reversed.
-
-However, since the specification requires a stream that does not support random access, this algorithm needs to load the
-input an entire problem case at a time, resulting in O(n).
+This algorithm need not hold all waypoints, since it can process the input with O(1) space. However, it is simpler to
+load all content into memory and then parse and process.
 
 Parsing
 -------
@@ -117,7 +114,7 @@ Parsing
 `callgrind` profiling reveals a surprising bottleneck: if `istream`-based operations are used to parse the file, that is
 the dominant cost. The naïve approach of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts
 for some 70% of program execution time. The alternative approach written in `WaypointReader` is to read the entire file
-into memory and then do a low-level reverse parse. This brings the parse step down to about 27% of execution time.
+into memory and then do a low-level parse. This brings the parse step down to about 27% of execution time.
 
 Performance
 ===========
