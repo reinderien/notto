@@ -153,12 +153,11 @@ namespace {
     class OptimisedWaypoint {
     public:
         const Waypoint waypoint;
-        const double best_cost, invariant_cost, cost_min;
-        const int penalty;
+        const double cost_best, cost_invariant, cost_min;
 
-        OptimisedWaypoint(const Waypoint &waypoint, double best_cost = 0):
-            waypoint(waypoint), best_cost(best_cost), invariant_cost(best_cost - waypoint.penalty + delay),
-            cost_min(waypoint.time_min() + invariant_cost), penalty(waypoint.penalty) { }
+        OptimisedWaypoint(const Waypoint &waypoint, double cost_best = 0):
+            waypoint(waypoint), cost_best(cost_best), cost_invariant(cost_best - waypoint.penalty + delay),
+            cost_min(waypoint.time_min() + cost_invariant) { }
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
@@ -167,11 +166,11 @@ namespace {
             // waypoints at (4, 2)
             // assert(time >= time_min);
             assert(time <= time_max);
-            return time + invariant_cost;
+            return time + cost_invariant;
         }
 
         double cost_max() const {
-            return waypoint.time_max() + invariant_cost;
+            return waypoint.time_max() + cost_invariant;
         }
 
         bool emplace(std::multimap<double, OptimisedWaypoint> &into) const {
@@ -180,10 +179,9 @@ namespace {
 
         void output(std::ostream &out) const {
             out << waypoint
-                << " best_cost=" << best_cost
-                << " inv_cost=" << invariant_cost
-                << " cost_min=" << cost_min
-                << " penalty=" << penalty;
+                << " cost_best=" << cost_best
+                << " cost_inv=" << cost_invariant
+                << " cost_min=" << cost_min;
         }
 
         bool is_sane() const {
@@ -208,15 +206,15 @@ namespace {
         const Waypoint &visited,
         const std::multimap<double, OptimisedWaypoint> &opt_waypoints
     ) {
-        double best_cost = std::numeric_limits<double>::max();
+        double cost_best = std::numeric_limits<double>::max();
 
         for (const OptimisedWaypoint &skipfrom: opt_waypoints | std::views::values) {
             assert(skipfrom.is_sane());
-            best_cost = std::min(best_cost, skipfrom.cost_from(visited));
+            cost_best = std::min(cost_best, skipfrom.cost_from(visited));
         }
 
-        assert(best_cost < std::numeric_limits<double>::max());
-        return best_cost;
+        assert(cost_best < std::numeric_limits<double>::max());
+        return cost_best;
     }
 
 
@@ -233,8 +231,8 @@ namespace {
             assert(visited.is_sane());
             total_penalty += visited.penalty;
 
-            double best_cost = get_best_cost(visited, opt_waypoints);
-            OptimisedWaypoint new_opt(visited, best_cost);
+            double cost_best = get_best_cost(visited, opt_waypoints);
+            OptimisedWaypoint new_opt(visited, cost_best);
             assert(new_opt.is_sane());
 
             if (new_opt.cost_min <= acceptable_cost && new_opt.emplace(opt_waypoints)) {
@@ -244,8 +242,8 @@ namespace {
         }
 
         constexpr Waypoint visited(edge, edge);
-        double best_cost = get_best_cost(visited, opt_waypoints);
-        return best_cost + total_penalty;
+        double cost_best = get_best_cost(visited, opt_waypoints);
+        return cost_best + total_penalty;
     }
 
 
