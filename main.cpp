@@ -24,9 +24,14 @@ namespace {
         speed = 2,   // metres per second
         edge = 100;  // metres
 
-    // These are theoretical bounds; we get narrower than this
+    /*
+    These are theoretical bounds; we get narrower than this during the pruning step.
+
+    We cannot use dist_min = 1, due to waypoints such as (4, 2) in
+    sample_input_large.txt that violate the uniqueness constraint
+    */
     constexpr double
-        dist_min = 1,
+        dist_min = 0,
         dist_max = edge*std::numbers::sqrt2,
         time_min = dist_min / speed,
         time_max = dist_max / speed;
@@ -35,19 +40,20 @@ namespace {
 
 
     double time_to(int dx, int dy) {
+        assert(-edge <= dx); assert(dx <= edge);
+        assert(-edge <= dy); assert(dy <= edge);
+
         // std::hypot(dx, dy) makes better use of the library but is much slower
+        double time = sqrt(dx*dx + dy*dy) / speed;
+        assert(!std::isnan(time));
+        assert(time_min <= time); assert(time <= time_max);
 
-        assert(dx >= -edge); assert(dx <= edge);
-        assert(dy >= -edge); assert(dy <= edge);
-
-        // We cannot assert that this time is within time_min and time_max, due to the case where time_min() is called
-        // on the endpoints
-        return sqrt(dx*dx + dy*dy) / speed;
+        return time;
     }
 
 
     int coord_min(int x) {
-        return std::max(1, std::min(edge-x, x));
+        return std::min(edge-x, x);
     }
 
     int coord_max(int x) {
@@ -161,11 +167,6 @@ namespace {
 
         double cost_from(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
-            assert(!std::isnan(time));
-            // We cannot do this because the provided sample_input_large.txt violates the uniqueness specification for
-            // waypoints at (4, 2)
-            // assert(time >= time_min);
-            assert(time <= time_max);
             return time + cost_invariant;
         }
 
