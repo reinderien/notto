@@ -59,7 +59,7 @@ namespace {
         const int x, y, penalty = 0;
 
         double time_to(const Waypoint &other) const {
-            return ::time_to(x - other.x, y - other.y);
+            return ::time_to(other.x - x, other.y - y);
         }
 
         double time_min() const {
@@ -71,7 +71,7 @@ namespace {
         }
 
         void output(std::ostream &out) const {
-            out << "x=" << x << " y=" << y << " penalty=" << penalty;
+            out << '(' << x << ',' << y << ") penalty=" << penalty;
         }
 
         bool is_sane() const {

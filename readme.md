@@ -127,6 +127,6 @@ and benchmarking three cases, all times in approximate milliseconds:
 
     Dataset             C++20      CPython 3.10.5
     -------             -----      --------------
-    all testcases           4                  31
-    9801 waypoints          6                  83
-    1,000,000 waypoints    76                5947
+    all testcases           3                  30
+    9801 waypoints          5                  79
+    1,000,000 waypoints    75                5626
