@@ -155,12 +155,12 @@ namespace {
     class OptimisedWaypoint {
     public:
         const Waypoint waypoint;
-        const double cost_best,       // Cost of the optimal path from the beginning all the way here
-                     cost_invariant,  // Sum of invariant costs incurred by skipping from this waypoint
+        const double cost_invariant,  // Sum of invariant costs incurred by skipping from this waypoint
                      cost_min;        // Lowest possible cost incurred by skipping from this waypoint to anywhere
 
+        // cost_best is the cost of the optimal path from the beginning all the way here
         OptimisedWaypoint(const Waypoint &waypoint, double cost_best = 0):
-            waypoint(waypoint), cost_best(cost_best), cost_invariant(cost_best - waypoint.penalty + delay),
+            waypoint(waypoint), cost_invariant(cost_best - waypoint.penalty + delay),
             cost_min(waypoint.time_min() + cost_invariant) { }
 
         double cost_to(const Waypoint &visited) const {
@@ -180,7 +180,6 @@ namespace {
 
         void output(std::ostream &out) const {
             out << waypoint
-                << " cost_best=" << cost_best
                 << " cost_inv=" << cost_invariant
                 << " cost_min=" << cost_min;
         }
