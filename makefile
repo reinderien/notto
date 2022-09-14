@@ -1,6 +1,6 @@
 export
 
-debugflags = -Og -ggdb
+debugflags = -O0 -ggdb
 releaseflags = -Ofast -s -march=native -DNDEBUG
 cppflags = --std=c++20 -Wall -Wextra -pedantic ${releaseflags}
 pyflags = -OO
