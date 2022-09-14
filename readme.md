@@ -49,9 +49,17 @@ on their position:
 
 Due to those bounds, and due to the invariant costs being overwhelmingly greater for non-trivial input, the inner-loop
 sequence of optimised waypoints can be sorted by invariant cost and pruned. In the outer loop, sort the sequence of
-optimised waypoints in increasing order by the sum of invariant costs of each waypoint. In C++, rather than sorting, use
-a self-sorted container, `multimap` with the key being the invariant cost. In Python the best we can do is logarithmic 
-`bisect.insort()` into a list.
+optimised waypoints in increasing order by the sum of invariant costs of each waypoint.
+
+In C++, rather than sorting, use a self-sorted container with the sort key being the invariant cost. `priority_queue` is
+interesting but cannot be used for this application since it cannot be iterated. `multimap` is appealing because it
+maintains order upon insertion without needing to swap. It is typically implemented as a red-black binary tree and has 
+O(log(m)) insertion and lookup, `m` as the length of the optimised waypoint sequence. In practice, insertion and erasure
+require frequent rebalancing, which is expensive. In comparison, a heap is much faster. Heaps are inconvenient to use in
+C++ since they have no dedicated container, but the speedup is worth it. `push_heap` and `pop_heap` are both O(log(m)).
+Since the heap size remains small, the inner loop becomes O(1) amortised over `n`.
+
+In Python the best we can do is `bisect` into a list: the search operation is logarithmic but insertion is linear.
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
 impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
@@ -67,9 +75,7 @@ pruning is minimal; effectively:
     max_time_a + inv_a < min_time_b + inv_b
 
 This pruning step is highly effective, and even for large input produces an optimised waypoint sequence that never
-exceeds 20 elements. `multimap` is typically implemented as a balanced binary tree and has O(log(m)) insertion and
-lookup, `m` as the length of the optimised waypoint sequence. Since the map size remains small, the inner loop becomes
-O(1) amortised over `n`.
+exceeds 20 elements.
 
 Negative penalty accrual
 ------------------------
@@ -129,4 +135,4 @@ and benchmarking three cases, all times in approximate milliseconds:
     -------             -----      --------------
     all testcases           3                  30
     9801 waypoints          5                  79
-    1,000,000 waypoints    73                5626
+    1,000,000 waypoints    54                5626
