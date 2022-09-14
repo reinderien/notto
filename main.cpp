@@ -172,10 +172,12 @@ namespace {
             return waypoint.time_max() + cost_invariant;
         }
 
-        // Return true if we emplace at the beginning of the map,
-        // that is, if we become the lowest-minimum-cost waypoint
-        bool emplace(std::multimap<double, OptimisedWaypoint> &into) const {
-            return into.cbegin() == into.emplace(cost_min, *this);
+        void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
+            into.emplace(cost_min, *this);
+        }
+
+        void emplace_front(std::multimap<double, OptimisedWaypoint> &into) const {
+            into.emplace_hint(into.cbegin(), cost_min, *this);
         }
 
         void output(std::ostream &out) const {
@@ -199,7 +201,6 @@ namespace {
     // front waypoint, having the lowest minimum cost of any optimised waypoint.
     void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints, double to_exceed) {
         auto prune_from = opt_waypoints.upper_bound(to_exceed);
-        assert(prune_from != opt_waypoints.cbegin());
         opt_waypoints.erase(prune_from, opt_waypoints.cend());
     }
 
@@ -222,14 +223,15 @@ namespace {
         // Map of optimised waypoints in increasing order of their minimum possible skip-from cost
         std::multimap<double, OptimisedWaypoint> opt_waypoints;
 
-        // The maximum acceptable cost, set as the maximum possible cost of the lowest-minimum-cost waypoint.
-        // Any waypoints costing more than this are discarded.
-        double acceptable_cost = std::numeric_limits<double>::max();
-
         int total_penalty = 0;
 
         const OptimisedWaypoint head(Waypoint(0, 0));
         head.emplace(opt_waypoints);
+
+        // The maximum acceptable cost, set as the maximum possible cost of the lowest-minimum-cost waypoint.
+        // Any waypoints costing more than this are discarded.
+        double cost_acceptable = std::numeric_limits<double>::max(),
+               cost_front = head.cost_min;
 
         for (int i = 0; i < n; ++i) {
             Waypoint visited = reader.get_next();
@@ -240,11 +242,18 @@ namespace {
             OptimisedWaypoint new_opt(visited, cost_best);
             assert(new_opt.is_sane());
 
-            if (new_opt.cost_min <= acceptable_cost && new_opt.emplace(opt_waypoints)) {
-                acceptable_cost = new_opt.cost_max();
-                // Only prune if the new waypoint has been accepted and has become the lowest-minimum-cost waypoint.
-                // Otherwise, the cost bounds will not have changed.
-                prune(opt_waypoints, acceptable_cost);
+            if (cost_acceptable >= new_opt.cost_min) {
+                if (cost_front >= new_opt.cost_min) {
+                    cost_front = new_opt.cost_min;
+                    cost_acceptable = new_opt.cost_max();
+
+                    // Only prune if the new waypoint has been accepted and has become the lowest-minimum-cost waypoint.
+                    // Otherwise, the cost bounds will not have changed.
+                    prune(opt_waypoints, cost_acceptable);
+                    new_opt.emplace_front(opt_waypoints);
+                }
+                else
+                    new_opt.emplace(opt_waypoints);
             }
         }
 
