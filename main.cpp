@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <charconv>
 #include <cmath>
@@ -6,6 +7,7 @@
 #include <iostream>
 #include <queue>
 #include <ranges>
+#include <vector>
 
 
 using namespace std::string_view_literals;
@@ -36,7 +38,7 @@ namespace {
         assert(-edge <= dy); assert(dy <= edge);
 
         // std::hypot(dx, dy) makes better use of the library but is much slower
-        double time = sqrt(dx*dx + dy*dy) / speed;
+        double time = std::sqrt(dx*dx + dy*dy) / speed;
         assert(!std::isnan(time));
         assert(time_min <= time); assert(time <= time_max);
 
@@ -225,7 +227,7 @@ namespace {
             if (opt_heap.front().cost_min <= to_exceed)
                 break;
             if (opt_heap.size() > 1)
-                pop_heap(opt_heap.begin(), opt_heap.end());
+                std::pop_heap(opt_heap.begin(), opt_heap.end());
             opt_heap.pop_back();
         }
     }
@@ -279,7 +281,7 @@ namespace {
                 }
 
                 opt_heap.emplace_back(new_opt);
-                push_heap(opt_heap.begin(), opt_heap.end());
+                std::push_heap(opt_heap.begin(), opt_heap.end());
             }
         }
 
