@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <map>
+#include <queue>
 #include <ranges>
 
 
@@ -55,8 +55,12 @@ namespace {
 
     // Direct representation of waypoints parsed from the input
     class Waypoint {
+    private:
+        int x, y, penalty;
+
     public:
-        const int x, y, penalty = 0;
+        Waypoint(int x, int y, int penalty = 0): x(x), y(y), penalty(penalty) { }
+        Waypoint(const Waypoint &other): x{other.x}, y(other.y), penalty(other.penalty) { }
 
         double time_to(const Waypoint &other) const {
             return ::time_to(other.x - x, other.y - y);
@@ -77,6 +81,15 @@ namespace {
         bool is_sane() const {
             return x >= 0 && x <= edge &&
                    y >= 0 && y <= edge;
+        }
+
+        int get_penalty() const { return penalty; }
+
+        Waypoint &operator=(const Waypoint &other) {
+            x = other.x;
+            y = other.y;
+            penalty = other.penalty;
+            return *this;
         }
     };
 
@@ -154,14 +167,19 @@ namespace {
     // in memory at a time, but a small handful of OptimisedWaypoints are held in a working map.
     class OptimisedWaypoint {
     public:
-        const Waypoint waypoint;
-        const double cost_invariant,  // Sum of invariant costs incurred by skipping from this waypoint
-                     cost_min;        // Lowest possible cost incurred by skipping from this waypoint to anywhere
+        Waypoint waypoint;
+        double cost_invariant,  // Sum of invariant costs incurred by skipping from this waypoint
+               cost_min;        // Lowest possible cost incurred by skipping from this waypoint to anywhere
 
         // cost_best is the cost of the optimal path from the beginning all the way here
         OptimisedWaypoint(const Waypoint &waypoint, double cost_best = 0):
-            waypoint(waypoint), cost_invariant(cost_best - waypoint.penalty + delay),
+            waypoint(waypoint), cost_invariant(cost_best - waypoint.get_penalty() + delay),
             cost_min(waypoint.time_min() + cost_invariant) { }
+
+        OptimisedWaypoint(const OptimisedWaypoint &copy):
+            waypoint(copy.waypoint),
+            cost_invariant(copy.cost_invariant),
+            cost_min(copy.cost_min) { }
 
         double cost_to(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
@@ -170,14 +188,6 @@ namespace {
 
         double cost_max() const {
             return waypoint.time_max() + cost_invariant;
-        }
-
-        void emplace(std::multimap<double, OptimisedWaypoint> &into) const {
-            into.emplace(cost_min, *this);
-        }
-
-        void emplace_front(std::multimap<double, OptimisedWaypoint> &into) const {
-            into.emplace_hint(into.cbegin(), cost_min, *this);
         }
 
         void output(std::ostream &out) const {
@@ -189,6 +199,17 @@ namespace {
         bool is_sane() const {
             return waypoint.is_sane();
         }
+
+        OptimisedWaypoint &operator=(const OptimisedWaypoint &other) {
+            waypoint = other.waypoint;
+            cost_invariant = other.cost_invariant;
+            cost_min = other.cost_min;
+            return *this;
+        }
+
+        bool operator<(const OptimisedWaypoint &other) const {
+            return cost_invariant < other.cost_invariant;
+        }
     };
 
     std::ostream &operator<<(std::ostream &out, const OptimisedWaypoint &ow) {
@@ -197,22 +218,27 @@ namespace {
     }
 
 
-    // Erase all map waypoints whose minimum cost is greater than to_exceed. to_exceed is the maximum cost of the map's
-    // front waypoint, having the lowest minimum cost of any optimised waypoint.
-    void prune(std::multimap<double, OptimisedWaypoint> &opt_waypoints, double to_exceed) {
-        auto prune_from = opt_waypoints.upper_bound(to_exceed);
-        opt_waypoints.erase(prune_from, opt_waypoints.cend());
+    // Erase all heap waypoints whose minimum cost is greater than to_exceed. to_exceed is the maximum cost of the
+    // heap's front waypoint, having the lowest minimum cost of any optimised waypoint.
+    void prune(std::vector<OptimisedWaypoint> &opt_heap, double to_exceed) {
+        while (!opt_heap.empty()) {
+            if (opt_heap.front().cost_min <= to_exceed)
+                break;
+            if (opt_heap.size() > 1)
+                pop_heap(opt_heap.begin(), opt_heap.end());
+            opt_heap.pop_back();
+        }
     }
 
 
     double get_best_cost(
         const Waypoint &visited,
-        const std::multimap<double, OptimisedWaypoint> &opt_waypoints
+        const std::vector<OptimisedWaypoint> &opt_heap
     ) {
         double cost_best = std::numeric_limits<double>::max();
 
-        for (const OptimisedWaypoint &skipfrom: opt_waypoints | std::views::values)
-            cost_best = std::min(cost_best, skipfrom.cost_to(visited));
+        for (const OptimisedWaypoint &skip_from: opt_heap)
+            cost_best = std::min(cost_best, skip_from.cost_to(visited));
 
         assert(cost_best < std::numeric_limits<double>::max());
         return cost_best;
@@ -220,13 +246,13 @@ namespace {
 
 
     double solve(WaypointReader &reader, int n) {
-        // Map of optimised waypoints in increasing order of their minimum possible skip-from cost
-        std::multimap<double, OptimisedWaypoint> opt_waypoints;
-
         int total_penalty = 0;
 
         const OptimisedWaypoint head(Waypoint(0, 0));
-        head.emplace(opt_waypoints);
+
+        // Max-heap of optimised waypoints with the first element
+        // guaranteed to have highest minimum possible skip-from cost
+        std::vector<OptimisedWaypoint> opt_heap { head };
 
         // The maximum acceptable cost, set as the maximum possible cost of the lowest-minimum-cost waypoint.
         // Any waypoints costing more than this are discarded.
@@ -236,9 +262,9 @@ namespace {
         for (int i = 0; i < n; ++i) {
             Waypoint visited = reader.get_next();
             assert(visited.is_sane());
-            total_penalty += visited.penalty;
+            total_penalty += visited.get_penalty();
 
-            double cost_best = get_best_cost(visited, opt_waypoints);
+            double cost_best = get_best_cost(visited, opt_heap);
             OptimisedWaypoint new_opt(visited, cost_best);
             assert(new_opt.is_sane());
 
@@ -249,16 +275,16 @@ namespace {
 
                     // Only prune if the new waypoint has been accepted and has become the lowest-minimum-cost waypoint.
                     // Otherwise, the cost bounds will not have changed.
-                    prune(opt_waypoints, cost_acceptable);
-                    new_opt.emplace_front(opt_waypoints);
+                    prune(opt_heap, cost_acceptable);
                 }
-                else
-                    new_opt.emplace(opt_waypoints);
+
+                opt_heap.emplace_back(new_opt);
+                push_heap(opt_heap.begin(), opt_heap.end());
             }
         }
 
-        constexpr Waypoint tail(edge, edge);
-        double cost_best = get_best_cost(tail, opt_waypoints);
+        static const Waypoint tail(edge, edge);
+        double cost_best = get_best_cost(tail, opt_heap);
 
         // Since waypoint costs are calculated with a negative relative penalty,
         // compensate by adding the total penalty to get the true cost
