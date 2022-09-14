@@ -209,7 +209,7 @@ namespace {
         }
 
         bool operator<(const OptimisedWaypoint &other) const {
-            return cost_invariant < other.cost_invariant;
+            return cost_min < other.cost_min;
         }
     };
 
