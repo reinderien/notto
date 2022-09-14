@@ -5,7 +5,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <queue>
 #include <ranges>
 #include <vector>
 
@@ -221,13 +220,12 @@ namespace {
 
 
     // Erase all heap waypoints whose minimum cost is greater than to_exceed. to_exceed is the maximum cost of the
-    // heap's front waypoint, having the lowest minimum cost of any optimised waypoint.
+    // waypoint having the lowest minimum cost of any optimised waypoint in the heap.
     void prune(std::vector<OptimisedWaypoint> &opt_heap, double to_exceed) {
         while (!opt_heap.empty()) {
             if (opt_heap.front().cost_min <= to_exceed)
                 break;
-            if (opt_heap.size() > 1)
-                std::pop_heap(opt_heap.begin(), opt_heap.end());
+            std::pop_heap(opt_heap.begin(), opt_heap.end());
             opt_heap.pop_back();
         }
     }
@@ -259,7 +257,7 @@ namespace {
         // The maximum acceptable cost, set as the maximum possible cost of the lowest-minimum-cost waypoint.
         // Any waypoints costing more than this are discarded.
         double cost_acceptable = std::numeric_limits<double>::max(),
-               cost_front = head.cost_min;
+               cost_min_best = head.cost_min;
 
         for (int i = 0; i < n; ++i) {
             Waypoint visited = reader.get_next();
@@ -271,8 +269,8 @@ namespace {
             assert(new_opt.is_sane());
 
             if (cost_acceptable >= new_opt.cost_min) {
-                if (cost_front >= new_opt.cost_min) {
-                    cost_front = new_opt.cost_min;
+                if (cost_min_best >= new_opt.cost_min) {
+                    cost_min_best = new_opt.cost_min;
                     cost_acceptable = new_opt.cost_max();
 
                     // Only prune if the new waypoint has been accepted and has become the lowest-minimum-cost waypoint.
