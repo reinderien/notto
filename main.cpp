@@ -165,7 +165,7 @@ namespace {
 
 
     // A sidekick to Waypoint that includes optimiser data. Only one "visited" Waypoint is held
-    // in memory at a time, but a small handful of OptimisedWaypoints are held in a working map.
+    // in memory at a time, but a small handful of OptimisedWaypoints are held in a working heap.
     class OptimisedWaypoint {
     public:
         Waypoint waypoint;

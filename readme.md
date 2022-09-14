@@ -51,7 +51,7 @@ Due to those bounds, and due to the invariant costs being overwhelmingly greater
 sequence of optimised waypoints can be sorted by invariant cost and pruned. In the outer loop, sort the sequence of
 optimised waypoints in increasing order by the sum of invariant costs of each waypoint.
 
-In C++, rather than sorting, use a self-sorted container with the sort key being the invariant cost. `priority_queue` is
+In C++, rather than sorting, use a self-sorted container with the sort key being the minimum cost. `priority_queue` is
 interesting but cannot be used for this application since it cannot be iterated. `multimap` is appealing because it
 maintains order upon insertion without needing to swap. It is typically implemented as a red-black binary tree and has 
 O(log(m)) insertion and lookup, `m` as the length of the optimised waypoint sequence. In practice, insertion and erasure
