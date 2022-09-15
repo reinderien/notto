@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -OO
 import sys
-from bisect import bisect
+from heapq import heappop, heappush
 from io import StringIO
 from itertools import chain, islice
 from pathlib import Path
@@ -20,29 +20,38 @@ class Solver:
     TAIL = Waypoint(x=EDGE, y=EDGE)
 
     def __init__(self) -> None:
-        self.opt_waypoints = [self.HEAD]
-        self.acceptable_cost = float('inf')
         self.total_penalty = 0
-        self.waypoints: list[Waypoint] = [self.HEAD.waypoint]
+        self.opt_heap = [self.HEAD]
+        self.cost_acceptable = float('inf')
         self.cost_best: Optional[float] = None
+        self.cost_min_best: float = self.HEAD.cost_min
         self.cost: Optional[float] = None
-        self.prune_from: Optional[int] = None
+        self.to_exceed: Optional[float] = None
+        self.to_prune: Optional[set[Waypoint]] = None
+        self.waypoints: list[Waypoint] = [self.HEAD.waypoint]
         self.visited: Optional[Waypoint] = None
         self.skip_from: Optional[OptimisedWaypoint] = None
         self.new_opt: Optional[OptimisedWaypoint] = None
+        self.best_opt = self.HEAD
         self.final_time: Optional[float] = None
 
     def prune(self) -> Iterator['Solver']:
-        self.prune_from = bisect(a=self.opt_waypoints, x=self.acceptable_cost, key=OptimisedWaypoint.sort_key)
-        assert self.prune_from > 0
-        while len(self.opt_waypoints) > self.prune_from:
+        self.to_prune = {
+            ow.waypoint
+            for ow in self.opt_heap
+            if ow.cost_min > self.to_exceed
+        }
+
+        while self.opt_heap and self.opt_heap[0].cost_min > self.to_exceed:
             yield self
-            self.opt_waypoints.pop()
-        self.prune_from = None
+            popped = heappop(self.opt_heap)
+            self.to_prune.remove(popped.waypoint)
+        
+        self.to_prune = None
 
     def get_best_cost(self) -> Iterator['Solver']:
         self.cost_best = float('inf')
-        for self.skip_from in self.opt_waypoints:
+        for self.skip_from in self.opt_heap:
             self.cost = self.skip_from.cost_to(self.visited)
             self.cost_best = min(self.cost_best, self.cost)
             yield self
@@ -62,9 +71,15 @@ class Solver:
         assert self.new_opt.is_sane
         yield self
 
-        if self.new_opt.cost_min <= self.acceptable_cost and self.new_opt.emplace(self.opt_waypoints):
-            self.acceptable_cost = self.new_opt.cost_max
-            yield from self.prune()
+        if self.cost_acceptable >= self.new_opt.cost_min:
+            if self.cost_min_best >= self.new_opt.cost_min:
+                self.best_opt = self.new_opt
+                self.cost_min_best = self.new_opt.cost_min
+                self.cost_acceptable = self.new_opt.cost_max
+                self.to_exceed = self.cost_acceptable
+                yield from self.prune()
+
+            heappush(self.opt_heap, self.new_opt)
 
         self.new_opt = None
 
@@ -151,20 +166,18 @@ class AnimateContext:
 
     def colour_waypoints(self, step: Solver) -> None:
         for waypoint, oval_id in tuple(self.waypoint_oval_ids.items()):
-            if step.prune_from is not None and waypoint in {
-                ow.waypoint for ow in step.opt_waypoints[step.prune_from:]
-            }:
+            if waypoint in (step.to_prune or ()):
                 fill = '#952d1a'  # dark red
             elif step.skip_from and waypoint == step.skip_from.waypoint:
                 fill = '#93cadb'  # light blue
-            elif waypoint == step.opt_waypoints[0].waypoint:
+            elif step.best_opt and waypoint == step.best_opt.waypoint:
                 fill = '#8916a6'  # purple
             elif step.new_opt and waypoint == step.new_opt.waypoint:
                 fill = '#dfc400'  # gold
             elif waypoint == step.visited:
                 fill = '#6fdc83'  # light green
             elif waypoint in {
-                ow.waypoint for ow in step.opt_waypoints
+                ow.waypoint for ow in step.opt_heap
             }:
                 fill = '#577d94'  # grey blue
             else:
@@ -178,9 +191,9 @@ class AnimateContext:
         while self.reachable_ids:
             self.canvas.delete(self.reachable_ids.pop())
 
-        source = step.opt_waypoints[0].waypoint
-        if step.prune_from:
-            target = step.opt_waypoints[-1]
+        source = step.best_opt
+        if step.to_prune:
+            target = step.opt_heap[0]
         else:
             target = step.new_opt
 
@@ -189,10 +202,10 @@ class AnimateContext:
 
         # cost = distance/speed + best_cost - penalty + delay
         # (acceptable_cost - invariant)*speed = reachable distance
-        reachable_dist = (step.acceptable_cost - target.cost_invariant) * SPEED
+        reachable_dist = (step.cost_acceptable - target.cost_invariant) * SPEED
         radius = max(5., reachable_dist*self.SCALE)
 
-        if step.prune_from or step.acceptable_cost < target.cost_min:
+        if step.to_prune or step.cost_acceptable < target.cost_min:
             outline = '#d33a23'  # red
         else:
             outline = '#76d323'  # green
@@ -220,16 +233,16 @@ class AnimateContext:
         if self.comparison_ray_id:
             self.canvas.delete(self.comparison_ray_id)
 
-        if step.prune_from:
-            source = step.opt_waypoints[0].waypoint
-            target = step.opt_waypoints[-1].waypoint
+        if step.to_prune:
+            source = step.best_opt.waypoint
+            target = step.opt_heap[0].waypoint
             outline = '#d33a23'  # red
         elif step.skip_from:
             source = step.visited
             target = step.skip_from.waypoint
             outline = '#93cadb'  # light blue
         elif step.new_opt:
-            source = step.opt_waypoints[0].waypoint
+            source = step.best_opt.waypoint
             target = step.new_opt.waypoint
             outline = '#dfc400'  # gold
         else:
