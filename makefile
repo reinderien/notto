@@ -1,7 +1,8 @@
 export
 
 debugflags = -O0 -ggdb
-releaseflags = -Ofast -s -march=native -DNDEBUG
+releaseflags = -Ofast -march=native -DNDEBUG -s
+cgrindflags = -Ofast -march=native -DNDEBUG -mno-avx512f
 cppflags = --std=c++20 -Wall -Wextra -pedantic ${releaseflags}
 pyflags = -OO
 
