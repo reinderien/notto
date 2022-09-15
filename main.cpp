@@ -101,6 +101,32 @@ namespace {
         const std::string_view body_view;
         long pos = 0;
 
+        void get_line(const char *&line_start, const char *&line_end) {
+            size_t next_pos = body_view.find('\n', pos),
+                   substr_len = next_pos - pos;
+            std::string_view line = body_view.substr(pos, substr_len);
+            line_start = line.data();
+            line_end = line_start + substr_len;
+            pos = next_pos + 1;
+        }
+
+        int get_int(const char *&start, const char *end) {
+            int i;
+            std::from_chars_result r = std::from_chars(start, end, i);
+            if (r.ec != success)
+                throw parse_error;
+            start = r.ptr + 1;
+            return i;
+        }
+
+        int get_last_int(const char *start, const char *end) {
+            int i;
+            std::from_chars_result r = std::from_chars(start, end, i);
+            if (r.ec != success || r.ptr != end)
+                throw parse_error;
+            return i;
+        }
+
     public:
         constexpr WaypointReader(const std::string &body_str):
             body_mem(body_str), body_view(body_mem) {
@@ -113,42 +139,17 @@ namespace {
         }
 
         int get_case_size() {
-            size_t next_pos = body_view.find('\n', pos),
-                   substr_len = next_pos - pos;
-            std::string_view line = body_view.substr(pos, substr_len);
-            const char *line_start = line.data(),
-                       *line_end = line_start + substr_len;
-            pos = next_pos + 1;
-
-            int size;
-            std::from_chars_result r = std::from_chars(line_start, line_end, size);
-            if (r.ec != success || r.ptr != line_end)
-                throw parse_error;
-
-            return size;
+            const char *start, *end;
+            get_line(start, end);
+            return get_last_int(start, end);
         }
 
         Waypoint get_next() {
-            size_t next_pos = body_view.find('\n', pos),
-                   substr_len = next_pos - pos;
-            std::string_view line = body_view.substr(pos, substr_len);
-            const char *line_start = line.data(),
-                       *line_end = line_start + substr_len;
-            pos = next_pos+1;
-
-            int x, y, penalty;
-            std::from_chars_result r = std::from_chars(line_start, line_end, x);
-            if (r.ec != success)
-                throw parse_error;
-
-            r = std::from_chars(r.ptr+1, line_end, y);
-            if (r.ec != success)
-                throw parse_error;
-
-            r = std::from_chars(r.ptr+1, line_end, penalty);
-            if (r.ec != success || r.ptr != line_end)
-                throw parse_error;
-
+            const char *start, *end;
+            get_line(start, end);
+            int x = get_int(start, end),
+                y = get_int(start, end),
+                penalty = get_last_int(start, end);
             return Waypoint(x, y, penalty);
         }
     };
