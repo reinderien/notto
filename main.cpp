@@ -45,11 +45,11 @@ namespace {
     }
 
 
-    int coord_min(int x) {
+    constexpr int coord_min(int x) {
         return std::min(edge-x, x);
     }
 
-    int coord_max(int x) {
+    constexpr int coord_max(int x) {
         return std::max(edge-x, x);
     }
 
@@ -60,7 +60,7 @@ namespace {
         int x, y, penalty;
 
     public:
-        Waypoint(int x, int y, int penalty = 0): x(x), y(y), penalty(penalty) { }
+        constexpr Waypoint(int x, int y, int penalty = 0): x(x), y(y), penalty(penalty) { }
 
         double time_to(const Waypoint &other) const {
             return ::time_to(other.x - x, other.y - y);
@@ -78,12 +78,12 @@ namespace {
             out << '(' << x << ',' << y << ") penalty=" << penalty;
         }
 
-        bool is_sane() const {
+        constexpr bool is_sane() const {
             return x >= 0 && x <= edge &&
                    y >= 0 && y <= edge;
         }
 
-        int get_penalty() const { return penalty; }
+        constexpr int get_penalty() const { return penalty; }
     };
 
     std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
@@ -102,7 +102,7 @@ namespace {
         long pos = 0;
 
     public:
-        WaypointReader(const std::string &body_str):
+        constexpr WaypointReader(const std::string &body_str):
             body_mem(body_str), body_view(body_mem) {
         }
 
