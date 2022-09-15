@@ -9,9 +9,6 @@
 #include <vector>
 
 
-using namespace std::string_view_literals;
-
-
 namespace {
     constexpr int
         delay = 10,  // seconds
@@ -342,6 +339,8 @@ namespace {
 
 
 int main(int argc, const char **argv) {
+    using namespace std::string_view_literals;
+
     try {
         if (argc > 1 && argv[1] == "-t"sv)
             test();
