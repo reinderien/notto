@@ -71,22 +71,18 @@ namespace {
             return ::time_to(coord_max(x), coord_max(y));
         }
 
-        void output(std::ostream &out) const {
-            out << '(' << x << ',' << y << ") penalty=" << penalty;
-        }
+        constexpr int get_penalty() const { return penalty; }
 
         constexpr bool is_sane() const {
             return x >= 0 && x <= edge &&
                    y >= 0 && y <= edge;
         }
 
-        constexpr int get_penalty() const { return penalty; }
+        friend std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
+            out << '(' << w.x << ',' << w.y << ") penalty=" << w.penalty;
+            return out;
+        }
     };
-
-    std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
-        w.output(out);
-        return out;
-    }
 
 
     // Parser to replace the quite-slow istream << method
@@ -178,25 +174,21 @@ namespace {
             return waypoint.time_max() + cost_invariant;
         }
 
-        void output(std::ostream &out) const {
-            out << waypoint
-                << " cost_inv=" << cost_invariant
-                << " cost_min=" << cost_min;
+        constexpr bool operator<(const OptimisedWaypoint &other) const {
+            return cost_min < other.cost_min;
         }
 
         constexpr bool is_sane() const {
             return waypoint.is_sane();
         }
 
-        constexpr bool operator<(const OptimisedWaypoint &other) const {
-            return cost_min < other.cost_min;
+        friend std::ostream &operator<<(std::ostream &out, const OptimisedWaypoint &ow) {
+            out << ow.waypoint
+                << " cost_inv=" << ow.cost_invariant
+                << " cost_min=" << ow.cost_min;
+            return out;
         }
     };
-
-    std::ostream &operator<<(std::ostream &out, const OptimisedWaypoint &ow) {
-        ow.output(out);
-        return out;
-    }
 
 
     // Erase all heap waypoints whose minimum cost is greater than to_exceed. to_exceed is the maximum cost of the
