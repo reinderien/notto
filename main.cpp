@@ -61,7 +61,6 @@ namespace {
 
     public:
         Waypoint(int x, int y, int penalty = 0): x(x), y(y), penalty(penalty) { }
-        Waypoint(const Waypoint &other): x{other.x}, y(other.y), penalty(other.penalty) { }
 
         double time_to(const Waypoint &other) const {
             return ::time_to(other.x - x, other.y - y);
@@ -85,13 +84,6 @@ namespace {
         }
 
         int get_penalty() const { return penalty; }
-
-        Waypoint &operator=(const Waypoint &other) {
-            x = other.x;
-            y = other.y;
-            penalty = other.penalty;
-            return *this;
-        }
     };
 
     std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
@@ -177,10 +169,7 @@ namespace {
             waypoint(waypoint), cost_invariant(cost_best - waypoint.get_penalty() + delay),
             cost_min(waypoint.time_min() + cost_invariant) { }
 
-        OptimisedWaypoint(const OptimisedWaypoint &copy):
-            waypoint(copy.waypoint),
-            cost_invariant(copy.cost_invariant),
-            cost_min(copy.cost_min) { }
+        constexpr OptimisedWaypoint(const OptimisedWaypoint &copy) = default;
 
         double cost_to(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
@@ -199,13 +188,6 @@ namespace {
 
         bool is_sane() const {
             return waypoint.is_sane();
-        }
-
-        OptimisedWaypoint &operator=(const OptimisedWaypoint &other) {
-            waypoint = other.waypoint;
-            cost_invariant = other.cost_invariant;
-            cost_min = other.cost_min;
-            return *this;
         }
 
         bool operator<(const OptimisedWaypoint &other) const {
