@@ -32,7 +32,7 @@ namespace {
     constexpr std::errc success = std::errc();
 
 
-    double time_to(int dx, int dy) {
+    constexpr double time_to(int dx, int dy) {
         assert(-edge <= dx); assert(dx <= edge);
         assert(-edge <= dy); assert(dy <= edge);
 
@@ -62,15 +62,15 @@ namespace {
     public:
         constexpr Waypoint(int x, int y, int penalty = 0): x(x), y(y), penalty(penalty) { }
 
-        double time_to(const Waypoint &other) const {
+        constexpr double time_to(const Waypoint &other) const {
             return ::time_to(other.x - x, other.y - y);
         }
 
-        double time_min() const {
+        constexpr double time_min() const {
             return ::time_to(coord_min(x), coord_min(y));
         }
 
-        double time_max() const {
+        constexpr double time_max() const {
             return ::time_to(coord_max(x), coord_max(y));
         }
 
@@ -165,18 +165,18 @@ namespace {
                cost_min;        // Lowest possible cost incurred by skipping from this waypoint to anywhere
 
         // cost_best is the cost of the optimal path from the beginning all the way here
-        OptimisedWaypoint(const Waypoint &waypoint, double cost_best = 0):
+        constexpr OptimisedWaypoint(const Waypoint &waypoint, double cost_best = 0):
             waypoint(waypoint), cost_invariant(cost_best - waypoint.get_penalty() + delay),
             cost_min(waypoint.time_min() + cost_invariant) { }
 
         constexpr OptimisedWaypoint(const OptimisedWaypoint &copy) = default;
 
-        double cost_to(const Waypoint &visited) const {
+        constexpr double cost_to(const Waypoint &visited) const {
             double time = visited.time_to(waypoint);
             return time + cost_invariant;
         }
 
-        double cost_max() const {
+        constexpr double cost_max() const {
             return waypoint.time_max() + cost_invariant;
         }
 
@@ -186,11 +186,11 @@ namespace {
                 << " cost_min=" << cost_min;
         }
 
-        bool is_sane() const {
+        constexpr bool is_sane() const {
             return waypoint.is_sane();
         }
 
-        bool operator<(const OptimisedWaypoint &other) const {
+        constexpr bool operator<(const OptimisedWaypoint &other) const {
             return cost_min < other.cost_min;
         }
     };
@@ -213,7 +213,7 @@ namespace {
     }
 
 
-    double get_best_cost(
+    constexpr double get_best_cost(
         const Waypoint &visited,
         const std::vector<OptimisedWaypoint> &opt_heap
     ) {
@@ -230,7 +230,7 @@ namespace {
     double solve(WaypointReader &reader, int n) {
         int total_penalty = 0;
 
-        const OptimisedWaypoint head(Waypoint(0, 0));
+        constexpr OptimisedWaypoint head(Waypoint(0, 0));
 
         // Max-heap of optimised waypoints with the first element
         // guaranteed to have highest minimum possible skip-from cost
@@ -265,7 +265,7 @@ namespace {
             }
         }
 
-        static const Waypoint tail(edge, edge);
+        constexpr Waypoint tail(edge, edge);
         double cost_best = get_best_cost(tail, opt_heap);
 
         // Since waypoint costs are calculated with a negative relative penalty,
