@@ -4,7 +4,7 @@ Algorithm
 Exponential
 -----------
 
-Given that every waypoint requires the choice of skip-or-not, a brute-force implementation costs O(2^n) in time.
+Given that every waypoint requires the choice of skip-or-not, a brute-force implementation costs O(2ⁿ) in time.
 
 Quadratic
 ---------
