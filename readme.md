@@ -119,8 +119,8 @@ Parsing
 
 `callgrind` profiling reveals a surprising bottleneck: if `istream`-based operations are used to parse the file, that is
 the dominant cost. The naïve approach of `in >> x >> y >> penalty` is so slow that, for 1,000,000 waypoints, it accounts
-for some 76% of program execution time. The alternative approach written in `WaypointReader` is to read the entire file
-into memory and then do a low-level parse. This brings the parse step down to about 23% of execution time.
+for some 79% of program execution time. The alternative approach written in `WaypointReader` is to read the entire file
+into memory and then do a low-level parse. This brings the parse step down to about 38% of execution time.
 
 Performance
 ===========
