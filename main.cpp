@@ -107,7 +107,7 @@ namespace {
         }
 
         static WaypointReader from_stream(std::istream &in) {
-            std::stringstream incopy;
+            std::ostringstream incopy;
             incopy << in.rdbuf();
             return WaypointReader(incopy.str());
         }
