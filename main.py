@@ -6,7 +6,7 @@ asserts get disabled in the .pyc when it's compiled with -OO, similar to NDEBUG 
 """
 
 import sys
-from bisect import bisect
+from heapq import heappop, heappush
 from io import StringIO
 from itertools import islice
 from math import sqrt
@@ -20,7 +20,7 @@ SPEED = 2         # metres per second
 EDGE = 100        # metres
 
 DISTANCE_MIN = 0
-DISTANCE_MAX = sqrt(2) * EDGE
+DISTANCE_MAX = EDGE * sqrt(2)
 TIME_MIN = DISTANCE_MIN / SPEED
 TIME_MAX = DISTANCE_MAX / SPEED
 
@@ -64,7 +64,7 @@ class Waypoint(NamedTuple):
         return time_to(coord_max(self.x), coord_max(self.y))
 
     def __str__(self) -> str:
-        return f'({self.x:3},{self.y:3}) penalty={self.penalty:3}'
+        return f'({self.x},{self.y}) penalty={self.penalty}'
 
     @property
     def is_sane(self) -> bool:
@@ -74,7 +74,6 @@ class Waypoint(NamedTuple):
 
 class OptimisedWaypoint(NamedTuple):
     waypoint: Waypoint
-    cost_best: float
     cost_invariant: float
     cost_min: float
 
@@ -82,7 +81,7 @@ class OptimisedWaypoint(NamedTuple):
     def with_cost(cls, waypoint: Waypoint, cost_best: float = 0) -> 'OptimisedWaypoint':
         cost_invariant = cost_best - waypoint.penalty + DELAY
         return cls(
-            waypoint=waypoint, cost_best=cost_best, cost_invariant=cost_invariant,
+            waypoint=waypoint, cost_invariant=cost_invariant,
             cost_min=waypoint.time_min + cost_invariant,
         )
 
@@ -94,18 +93,9 @@ class OptimisedWaypoint(NamedTuple):
     def cost_max(self) -> float:
         return self.waypoint.time_max + self.cost_invariant
 
-    def emplace(self, into: list['OptimisedWaypoint']) -> bool:
-        i = bisect(a=into, x=self.cost_min, key=OptimisedWaypoint.sort_key)
-        into.insert(i, self)
-        return i == 0
-
-    def sort_key(self) -> float:
-        return self.cost_invariant
-
     def __str__(self) -> str:
         return (
             f'{self.waypoint}'
-            f' cost_best={self.cost_best:.3f}'
             f' cost_inv={self.cost_invariant:.3f}'
             f' cost_min={self.cost_min:.3f}'
         )
@@ -114,40 +104,48 @@ class OptimisedWaypoint(NamedTuple):
     def is_sane(self) -> bool:
         return self.waypoint.is_sane
 
-
-def prune(opt_waypoints: list[OptimisedWaypoint], to_exceed: float) -> None:
-    # opt_waypoints must be in increasing order of invariant cost
-    prune_from = bisect(a=opt_waypoints, x=to_exceed, key=OptimisedWaypoint.sort_key)
-    assert prune_from > 0
-    del opt_waypoints[prune_from:]
+    def __lt__(self, other: 'OptimisedWaypoint') -> bool:
+        # heappush and heappop have no key argument, so we need __lt__.
+        # heapq creates min-heaps, but we need a max-heap so we invert this predicate.
+        return self.cost_min >= other.cost_min
 
 
-def possible_costs(visited: Waypoint, opt_waypoints: Sequence[OptimisedWaypoint]) -> Iterator[float]:
-    for skip_from in opt_waypoints:
+def prune(opt_heap: list[OptimisedWaypoint], to_exceed: float) -> None:
+    while opt_heap and opt_heap[0].cost_min > to_exceed:
+        heappop(opt_heap)
+
+
+def possible_costs(visited: Waypoint, opt_heap: Sequence[OptimisedWaypoint]) -> Iterator[float]:
+    for skip_from in opt_heap:
         yield skip_from.cost_to(visited)
 
 
 def solve(in_: TextIO, n: int) -> float:
-    head = OptimisedWaypoint.with_cost(Waypoint(x=0, y=0))
-    opt_waypoints = [head]
-    acceptable_cost = float('inf')
     total_penalty = 0
+    head = OptimisedWaypoint.with_cost(Waypoint(x=0, y=0))
+    opt_heap = [head]
+    cost_acceptable = float('inf')
+    cost_min_best = head.cost_min
 
     for line in islice(in_, n):
         visited = Waypoint.from_line(line)
         assert visited.is_sane
         total_penalty += visited.penalty
 
-        cost_best = min(possible_costs(visited, opt_waypoints))
+        cost_best = min(possible_costs(visited, opt_heap))
         new_opt = OptimisedWaypoint.with_cost(waypoint=visited, cost_best=cost_best)
         assert new_opt.is_sane
 
-        if new_opt.cost_min <= acceptable_cost and new_opt.emplace(opt_waypoints):
-            acceptable_cost = new_opt.cost_max
-            prune(opt_waypoints, acceptable_cost)
+        if cost_acceptable >= new_opt.cost_min:
+            if cost_min_best >= new_opt.cost_min:
+                cost_min_best = new_opt.cost_min
+                cost_acceptable = new_opt.cost_max
+                prune(opt_heap, cost_acceptable)
+
+            heappush(opt_heap, new_opt)
 
     tail = Waypoint(x=EDGE, y=EDGE)
-    cost_best = min(possible_costs(tail, opt_waypoints))
+    cost_best = min(possible_costs(tail, opt_heap))
     return cost_best + total_penalty
 
 
@@ -167,11 +165,11 @@ def test() -> None:
         with (parent / f'sample_input_{case}.txt').open() as in_, StringIO() as out:
             process_stream(in_, out)
             out.seek(0)
-            print(out.getvalue())
 
             with (parent / f'sample_output_{case}.txt').open() as out_exp:
                 for line in out_exp:
                     actual = next(out)
+                    print(f'{line.rstrip()} == {actual.rstrip()}')
                     assert line == actual
 
 

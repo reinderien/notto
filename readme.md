@@ -59,7 +59,7 @@ require frequent rebalancing, which is expensive. In comparison, a heap is much 
 C++ since they have no dedicated container, but the speedup is worth it. `push_heap` and `pop_heap` are both O(log(m)).
 Since the heap size remains small, the inner loop becomes O(1) amortised over `n`.
 
-In Python the best we can do is `bisect` into a list: the search operation is logarithmic but insertion is linear.
+In Python there is a similar `heapq` module. It offers a min-heap instead of a max-heap, so conversion is needed.
 
 Then consider the maximum cost delta between the start and end of this sequence where, beyond this delta, it will be 
 impossible to see a cost smaller than at the start. This worst-case calculation is done by assuming that the distance 
@@ -134,5 +134,5 @@ and benchmarking three cases, all times in approximate milliseconds:
     Dataset             C++20      CPython 3.10.5
     -------             -----      --------------
     all testcases           3                  30
-    9801 waypoints          5                  79
-    1,000,000 waypoints    54                5626
+    9801 waypoints          5                  73
+    1,000,000 waypoints    54                4978

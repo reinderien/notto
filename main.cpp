@@ -204,9 +204,7 @@ namespace {
     // Erase all heap waypoints whose minimum cost is greater than to_exceed. to_exceed is the maximum cost of the
     // waypoint having the lowest minimum cost of any optimised waypoint in the heap.
     void prune(std::vector<OptimisedWaypoint> &opt_heap, double to_exceed) {
-        while (!opt_heap.empty()) {
-            if (opt_heap.front().cost_min <= to_exceed)
-                break;
+        while (!opt_heap.empty() && opt_heap.front().cost_min > to_exceed) {
             std::pop_heap(opt_heap.begin(), opt_heap.end());
             opt_heap.pop_back();
         }
