@@ -2,6 +2,7 @@
 #include <cassert>
 #include <charconv>
 #include <cmath>
+#include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -10,8 +11,8 @@
 
 
 namespace {
-    using coord_t = int;
-    using penalty_t = int;
+    using coord_t = uint8_t;
+    using penalty_t = uint8_t;
     using cost_t = double;
 
     constexpr int delay = 10,  // seconds
@@ -32,7 +33,7 @@ namespace {
     constexpr std::errc success = std::errc();
 
 
-    constexpr cost_t time_to(coord_t dx, coord_t dy) {
+    constexpr cost_t time_to(int dx, int dy) {
         assert(-edge <= dx); assert(dx <= edge);
         assert(-edge <= dy); assert(dy <= edge);
 
@@ -46,11 +47,11 @@ namespace {
 
 
     constexpr coord_t coord_min(coord_t x) {
-        return std::min(edge-x, x);
+        return std::min(edge-x, (int)x);
     }
 
     constexpr coord_t coord_max(coord_t x) {
-        return std::max(edge-x, x);
+        return std::max(edge-x, (int)x);
     }
 
 
@@ -78,8 +79,7 @@ namespace {
         constexpr penalty_t get_penalty() const { return penalty; }
 
         constexpr bool is_sane() const {
-            return x >= 0 && x <= edge &&
-                   y >= 0 && y <= edge;
+            return x <= edge && y <= edge;
         }
 
         friend std::ostream &operator<<(std::ostream &out, const Waypoint &w) {
@@ -107,8 +107,9 @@ namespace {
             pos = next_pos + 1;
         }
 
-        int get_int(const char *&start, const char *end) {
-            int i;
+        template <typename T>
+        T get_int(const char *&start, const char *end) {
+            T i;
             std::from_chars_result r = std::from_chars(start, end, i);
             if (r.ec != success)
                 throw parse_error;
@@ -116,8 +117,9 @@ namespace {
             return i;
         }
 
-        int get_last_int(const char *start, const char *end) {
-            int i;
+        template <typename T>
+        T get_last_int(const char *start, const char *end) {
+            T i;
             std::from_chars_result r = std::from_chars(start, end, i);
             if (r.ec != success || r.ptr != end)
                 throw parse_error;
@@ -135,18 +137,18 @@ namespace {
             return WaypointReader(incopy.str());
         }
 
-        int get_case_size() {
+        size_t get_case_size() {
             const char *start, *end;
             get_line(start, end);
-            return get_last_int(start, end);
+            return get_last_int<size_t>(start, end);
         }
 
         Waypoint get_next() {
             const char *start, *end;
             get_line(start, end);
-            coord_t x = get_int(start, end),
-                    y = get_int(start, end);
-            penalty_t penalty = get_last_int(start, end);
+            coord_t x = get_int<coord_t>(start, end),
+                    y = get_int<coord_t>(start, end);
+            penalty_t penalty = get_last_int<penalty_t>(start, end);
             return Waypoint(x, y, penalty);
         }
     };
@@ -222,8 +224,8 @@ namespace {
     }
 
 
-    cost_t solve(WaypointReader &reader, int n) {
-        penalty_t total_penalty = 0;
+    cost_t solve(WaypointReader &reader, size_t n) {
+        int total_penalty = 0;
 
         constexpr OptimisedWaypoint head(Waypoint(0, 0));
 
@@ -236,7 +238,7 @@ namespace {
         cost_t cost_acceptable = std::numeric_limits<cost_t>::max(),
                cost_min_best = head.cost_min();
 
-        for (int i = 0; i < n; ++i) {
+        for (size_t i = 0; i < n; ++i) {
             Waypoint visited = reader.get_next();
             assert(visited.is_sane());
             total_penalty += visited.get_penalty();
@@ -278,7 +280,7 @@ namespace {
         WaypointReader reader = WaypointReader::from_stream(in);
 
         for (;;) {
-            int n = reader.get_case_size();
+            size_t n = reader.get_case_size();
             if (n == 0) break;
 
             cost_t time = solve(reader, n);
