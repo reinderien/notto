@@ -298,10 +298,8 @@ namespace {
             }
             out_act >> time_act;
             std::cout << time_exp << " == " << time_act << std::endl;
-            if (time_exp != time_act) {
-                std::cerr << "Assertion failure" << std::endl;
-                exit(1);
-            }
+            if (time_exp != time_act)
+                throw std::runtime_error("Assertion failure";
         }
     }
 
