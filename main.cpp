@@ -134,7 +134,7 @@ namespace {
         static WaypointReader from_stream(std::istream &in) {
             std::ostringstream incopy;
             incopy << in.rdbuf();
-            return WaypointReader(incopy.str());
+            return WaypointReader(std::move(incopy).str());
         }
 
         size_t get_case_size() {
